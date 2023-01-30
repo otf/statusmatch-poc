@@ -11,21 +11,21 @@ struct Status {
 }
 
 #[derive(Serialize, Deserialize)]
-struct ProgramAndStatuses {
+struct ProgramAndStatus {
     id: i64,
     name: String,
     statuses: Vec<Status>,
 }
 
-fn retrieve_programs() -> reqwest::Result<Vec<ProgramAndStatuses>> {
+fn retrieve_program_and_statuses() -> reqwest::Result<Vec<ProgramAndStatus>> {
     let res = reqwest::blocking::get(
         "https://www.statusmatcher.com/api/program?view=programAndStatuses",
     )?
-    .json::<Vec<ProgramAndStatuses>>()?;
+    .json::<Vec<ProgramAndStatus>>()?;
     Ok(res)
 }
 
-fn dump_programs(program_and_statuses: &Vec<ProgramAndStatuses>) -> anyhow::Result<()> {
+fn dump_programs(program_and_statuses: &Vec<ProgramAndStatus>) -> anyhow::Result<()> {
     let programs = program_and_statuses
         .iter()
         .unique_by(|x| &x.name)
@@ -46,7 +46,7 @@ fn dump_programs(program_and_statuses: &Vec<ProgramAndStatuses>) -> anyhow::Resu
 }
 
 fn main() -> anyhow::Result<()> {
-    let program_and_statuses = retrieve_programs()?;
+    let program_and_statuses = retrieve_program_and_statuses()?;
     dump_programs(&program_and_statuses)?;
     Ok(())
 }
