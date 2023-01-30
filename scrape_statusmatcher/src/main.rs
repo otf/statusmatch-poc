@@ -22,6 +22,13 @@ struct NormalizedProgram {
     name: String,
 }
 
+#[derive(Serialize)]
+struct NormalizedStatus {
+    program_id: usize,
+    pos: usize,
+    name: String,
+}
+
 fn retrieve_program_and_statuses() -> reqwest::Result<Vec<ProgramAndStatus>> {
     let res = reqwest::blocking::get(
         "https://www.statusmatcher.com/api/program?view=programAndStatuses",
@@ -30,9 +37,9 @@ fn retrieve_program_and_statuses() -> reqwest::Result<Vec<ProgramAndStatus>> {
     Ok(res)
 }
 
-fn dump_programs(programs: &Vec<NormalizedProgram>) -> anyhow::Result<()> {
-    let json = serde_json::to_string(&programs)?;
-    let mut file = File::create("./program.json")?;
+fn dump(path: &str, data: &impl Serialize) -> anyhow::Result<()> {
+    let json = serde_json::to_string(&data)?;
+    let mut file = File::create(path)?;
     file.write_all(json.as_bytes())?;
     file.flush()?;
     Ok(())
@@ -50,9 +57,34 @@ fn normalize_programs(program_and_statuses: &Vec<ProgramAndStatus>) -> Vec<Norma
         .collect()
 }
 
+fn normalize_statuses(
+    programs: &Vec<NormalizedProgram>,
+    program_and_statuses: &Vec<ProgramAndStatus>,
+) -> Vec<NormalizedStatus> {
+    programs
+        .iter()
+        .flat_map(|program| {
+            program_and_statuses
+                .iter()
+                .find(|row| row.name == program.name)
+                .unwrap()
+                .statuses
+                .iter()
+                .enumerate()
+                .map(|(i, row)| NormalizedStatus {
+                    program_id: program.id,
+                    pos: i,
+                    name: row.name.clone(),
+                })
+        })
+        .collect()
+}
+
 fn main() -> anyhow::Result<()> {
     let program_and_statuses = retrieve_program_and_statuses()?;
     let programs = normalize_programs(&program_and_statuses);
-    dump_programs(&programs)?;
+    dump("programs.json", &programs)?;
+    let statuses = normalize_statuses(&programs, &program_and_statuses);
+    dump("statuses.json", &statuses)?;
     Ok(())
 }
