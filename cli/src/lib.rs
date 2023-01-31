@@ -3,7 +3,6 @@ use reqwest::blocking as req;
 use serde::{Deserialize, Serialize};
 use std::fs::create_dir_all;
 use std::fs::File;
-use std::io::Result;
 use std::io::Write;
 use std::path::Path;
 
