@@ -1,8 +1,11 @@
 use itertools::Itertools;
 use reqwest::blocking as req;
 use serde::{Deserialize, Serialize};
+use std::fs::create_dir_all;
 use std::fs::File;
+use std::io::Result;
 use std::io::Write;
+use std::path::Path;
 
 #[derive(Serialize, Deserialize)]
 struct Status {
@@ -171,6 +174,16 @@ fn normalize_reports(
         .collect()
 }
 
+fn create_dir_if_not_exists(path: &str) -> std::io::Result<()> {
+    let path = Path::new(path);
+    if path.try_exists()? {
+        Ok(())
+    } else {
+        create_dir_all(path)?;
+        Ok(())
+    }
+}
+
 fn main() -> anyhow::Result<()> {
     let program_and_statuses = retrieve_program_and_statuses()?;
     let normalized_programs = normalize_programs(&program_and_statuses);
@@ -179,8 +192,9 @@ fn main() -> anyhow::Result<()> {
     let normalized_reports =
         normalize_reports(&normalized_programs, &normalized_statuses, &reports);
 
-    dump("programs.json", &normalized_programs)?;
-    dump("statuses.json", &normalized_statuses)?;
-    dump("reports.json", &normalized_reports)?;
+    create_dir_if_not_exists("data")?;
+    dump("data/programs.json", &normalized_programs)?;
+    dump("data/statuses.json", &normalized_statuses)?;
+    dump("data/reports.json", &normalized_reports)?;
     Ok(())
 }
