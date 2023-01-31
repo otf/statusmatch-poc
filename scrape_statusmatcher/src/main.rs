@@ -1,4 +1,5 @@
 use itertools::Itertools;
+use reqwest::blocking as req;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::Write;
@@ -16,6 +17,29 @@ struct ProgramAndStatus {
     statuses: Vec<Status>,
 }
 
+#[derive(Deserialize, Debug)]
+struct ReportList {
+    collection: Vec<Report>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
+enum ReportResult {
+    MATCH,
+    DENY,
+    CHALLENGE,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all(deserialize = "camelCase"))]
+struct Report {
+    id: usize,
+    result: ReportResult,
+    from_program: Option<String>,
+    from_status: Option<String>,
+    to_program: Option<String>,
+    to_status: Option<String>,
+}
+
 #[derive(Serialize)]
 struct NormalizedProgram {
     id: usize,
@@ -24,17 +48,36 @@ struct NormalizedProgram {
 
 #[derive(Serialize)]
 struct NormalizedStatus {
+    id: usize,
     program_id: usize,
     pos: usize,
     name: String,
 }
 
+#[derive(Serialize, Debug)]
+struct NormalizedReport {
+    id: usize,
+    from_status_id: usize,
+    to_status_id: usize,
+    result: ReportResult,
+}
+
 fn retrieve_program_and_statuses() -> reqwest::Result<Vec<ProgramAndStatus>> {
-    let res = reqwest::blocking::get(
-        "https://www.statusmatcher.com/api/program?view=programAndStatuses",
-    )?
-    .json::<Vec<ProgramAndStatus>>()?;
-    Ok(res)
+    let url = "https://www.statusmatcher.com/api/program?view=programAndStatuses";
+    Ok(req::get(url)?.json()?)
+}
+
+fn retrieve_reports(to_program: &NormalizedProgram) -> reqwest::Result<Vec<Report>> {
+    let url = format!("https://www.statusmatcher.com/api/report?page=0&size={}&view=programReportList&programId={}&to=true", u16::MAX, to_program.id);
+    Ok(req::get(url)?.json::<ReportList>()?.collection)
+}
+
+fn accumulate_reports(programs: &Vec<NormalizedProgram>) -> reqwest::Result<Vec<Report>> {
+    Ok(programs
+        .iter()
+        .filter_map(|row| retrieve_reports(row).ok())
+        .flatten()
+        .collect())
 }
 
 fn dump(path: &str, data: &impl Serialize) -> anyhow::Result<()> {
@@ -49,9 +92,8 @@ fn normalize_programs(program_and_statuses: &Vec<ProgramAndStatus>) -> Vec<Norma
     program_and_statuses
         .iter()
         .unique_by(|row| &row.name)
-        .enumerate()
-        .map(|(i, row)| NormalizedProgram {
-            id: i,
+        .map(|row| NormalizedProgram {
+            id: row.id,
             name: row.name.clone(),
         })
         .collect()
@@ -66,12 +108,13 @@ fn normalize_statuses(
         .flat_map(|program| {
             program_and_statuses
                 .iter()
-                .find(|row| row.name == program.name)
+                .find(|row| row.id == program.id)
                 .unwrap()
                 .statuses
                 .iter()
                 .enumerate()
                 .map(|(i, row)| NormalizedStatus {
+                    id: row.id,
                     program_id: program.id,
                     pos: i,
                     name: row.name.clone(),
@@ -80,11 +123,64 @@ fn normalize_statuses(
         .collect()
 }
 
+fn find_status_id(
+    programs: &Vec<NormalizedProgram>,
+    statuses: &Vec<NormalizedStatus>,
+    program: &Option<String>,
+    status: &Option<String>,
+) -> Option<usize> {
+    if let (Some(program), Some(status)) = (program, status) {
+        let program = programs.iter().find(|row| row.name == *program).unwrap();
+        let status = statuses
+            .iter()
+            .find(|row| row.program_id == program.id && row.name == *status)
+            .unwrap();
+        Some(status.id)
+    } else {
+        None
+    }
+}
+
+fn normalize_reports(
+    programs: &Vec<NormalizedProgram>,
+    statuses: &Vec<NormalizedStatus>,
+    reports: &Vec<Report>,
+) -> Vec<NormalizedReport> {
+    reports
+        .iter()
+        .filter_map(|report| {
+            if let (Some(from_status_id), Some(to_status_id)) = (
+                find_status_id(
+                    programs,
+                    statuses,
+                    &report.from_program,
+                    &report.from_status,
+                ),
+                find_status_id(programs, statuses, &report.to_program, &report.to_status),
+            ) {
+                Some(NormalizedReport {
+                    id: report.id,
+                    from_status_id: from_status_id,
+                    to_status_id: to_status_id,
+                    result: report.result,
+                })
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
 fn main() -> anyhow::Result<()> {
     let program_and_statuses = retrieve_program_and_statuses()?;
-    let programs = normalize_programs(&program_and_statuses);
-    dump("programs.json", &programs)?;
-    let statuses = normalize_statuses(&programs, &program_and_statuses);
-    dump("statuses.json", &statuses)?;
+    let normalized_programs = normalize_programs(&program_and_statuses);
+    let normalized_statuses = normalize_statuses(&normalized_programs, &program_and_statuses);
+    let reports = accumulate_reports(&normalized_programs)?;
+    let normalized_reports =
+        normalize_reports(&normalized_programs, &normalized_statuses, &reports);
+
+    dump("programs.json", &normalized_programs)?;
+    dump("statuses.json", &normalized_statuses)?;
+    dump("reports.json", &normalized_reports)?;
     Ok(())
 }
