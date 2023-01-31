@@ -1,3 +1,5 @@
+use cli::scrape;
+
 fn main() -> anyhow::Result<()> {
-    cli::run()
+    scrape::run()
 }
