@@ -174,27 +174,28 @@ fn normalize_reports(
         .collect()
 }
 
-fn create_dir_if_not_exists(path: &str) -> std::io::Result<()> {
+fn create_dir_if_not_exists(path: &str) -> std::io::Result<bool> {
     let path = Path::new(path);
     if path.try_exists()? {
-        Ok(())
+        Ok(true)
     } else {
         create_dir_all(path)?;
-        Ok(())
+        Ok(false)
     }
 }
 
 fn main() -> anyhow::Result<()> {
-    let program_and_statuses = retrieve_program_and_statuses()?;
-    let normalized_programs = normalize_programs(&program_and_statuses);
-    let normalized_statuses = normalize_statuses(&normalized_programs, &program_and_statuses);
-    let reports = accumulate_reports(&normalized_programs)?;
-    let normalized_reports =
-        normalize_reports(&normalized_programs, &normalized_statuses, &reports);
+    if !create_dir_if_not_exists("data")? {
+        let program_and_statuses = retrieve_program_and_statuses()?;
+        let normalized_programs = normalize_programs(&program_and_statuses);
+        let normalized_statuses = normalize_statuses(&normalized_programs, &program_and_statuses);
+        let reports = accumulate_reports(&normalized_programs)?;
+        let normalized_reports =
+            normalize_reports(&normalized_programs, &normalized_statuses, &reports);
 
-    create_dir_if_not_exists("data")?;
-    dump("data/programs.json", &normalized_programs)?;
-    dump("data/statuses.json", &normalized_statuses)?;
-    dump("data/reports.json", &normalized_reports)?;
+        dump("data/programs.json", &normalized_programs)?;
+        dump("data/statuses.json", &normalized_statuses)?;
+        dump("data/reports.json", &normalized_reports)?;
+    }
     Ok(())
 }
