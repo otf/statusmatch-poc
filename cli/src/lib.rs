@@ -1,5 +1,8 @@
 pub mod scrape;
 pub mod statusmatch;
+pub mod usecase;
+
+pub use usecase::Usecase;
 
 use serde::{Deserialize, Serialize};
 
