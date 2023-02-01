@@ -1,3 +1,4 @@
+use crate::{NormalizedProgram, NormalizedReport, NormalizedStatus, ReportResult};
 use itertools::Itertools;
 use reqwest::blocking as req;
 use serde::{Deserialize, Serialize};
@@ -24,13 +25,6 @@ struct ReportList {
     collection: Vec<Report>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
-enum ReportResult {
-    MATCH,
-    DENY,
-    CHALLENGE,
-}
-
 #[derive(Deserialize, Debug)]
 #[serde(rename_all(deserialize = "camelCase"))]
 struct Report {
@@ -40,28 +34,6 @@ struct Report {
     from_status: Option<String>,
     to_program: Option<String>,
     to_status: Option<String>,
-}
-
-#[derive(Serialize)]
-struct NormalizedProgram {
-    id: usize,
-    name: String,
-}
-
-#[derive(Serialize)]
-struct NormalizedStatus {
-    id: usize,
-    program_id: usize,
-    pos: usize,
-    name: String,
-}
-
-#[derive(Serialize, Debug)]
-struct NormalizedReport {
-    id: usize,
-    from_status_id: usize,
-    to_status_id: usize,
-    result: ReportResult,
 }
 
 fn retrieve_program_and_statuses() -> reqwest::Result<Vec<ProgramAndStatus>> {
