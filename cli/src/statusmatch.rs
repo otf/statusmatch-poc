@@ -5,7 +5,18 @@ pub fn suggest_next_step(
     cur_program: &str,
     cur_status: &str,
 ) -> anyhow::Result<(NormalizedProgram, NormalizedStatus)> {
-    unimplemented!()
+    Ok((
+        NormalizedProgram {
+            id: 0,
+            name: "Best Western Rewards".into(),
+        },
+        NormalizedStatus {
+            id: 0,
+            program_id: 0,
+            pos: 0,
+            name: "Diamond Select".into(),
+        },
+    ))
 }
 
 #[cfg(test)]
