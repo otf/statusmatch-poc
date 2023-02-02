@@ -70,6 +70,7 @@ impl Usecase for UsecaseForMemory {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use test_case::test_case;
 
     fn create_program_and_statuses(
         program_id: usize,
@@ -134,29 +135,15 @@ mod tests {
         }
     }
 
-    #[test]
-    fn should_be_able_to_statusmatch_from_asr_to_bestwestern() {
+    #[test_case(("Ascott Star Rewards", "Platinum"), ("Best Western Rewards", "Diamond Select"))]
+    #[test_case(("IHG One Rewards", "Platinum Elite"), ("Marriott Bonvoy", "Gold Elite"))]
+    fn should_be_able_to_suggest((from_program, from_status): (&str, &str), (to_program, to_status): (&str, &str)) {
         let usecase = create_usecase();
         if let [(NormalizedProgram { name: program, .. }, NormalizedStatus { name: status, .. }), ..] =
-            usecase.suggest_next_step("Ascott Star Rewards", "Platinum").unwrap()[..]
+            usecase.suggest_next_step(from_program, from_status).unwrap()[..]
         {
             assert_eq!(
-                ("Best Western Rewards", "Diamond Select"),
-                (program.as_str(), status.as_str())
-            );
-        } else {
-            assert!(false);
-        }
-    }
-
-    #[test]
-    fn should_be_able_to_statusmatch_from_ihg_to_marriott() {
-        let usecase = create_usecase();
-        if let [(NormalizedProgram { name: program, .. }, NormalizedStatus { name: status, .. }), ..] =
-            usecase.suggest_next_step( "IHG One Rewards", "Platinum Elite").unwrap()[..]
-        {
-            assert_eq!(
-                ("Marriott Bonvoy", "Gold Elite"),
+                (to_program, to_status),
                 (program.as_str(), status.as_str())
             );
         } else {
