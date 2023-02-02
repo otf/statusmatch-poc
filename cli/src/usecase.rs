@@ -1,4 +1,5 @@
 use crate::entities::*;
+use anyhow::anyhow;
 
 pub trait Usecase {
     fn suggest_next_step(
@@ -14,52 +15,61 @@ pub struct UsecaseForMemory {
     pub reports: Vec<NormalizedReport>,
 }
 
+impl UsecaseForMemory {
+    pub fn load_from((programs, statuses, reports): Entities) -> Self {
+        Self {
+            programs: programs,
+            statuses: statuses,
+            reports: reports,
+        }
+    }
+}
+
+impl Usecase for UsecaseForMemory {
+    fn suggest_next_step(
+        &self,
+        cur_program: &str,
+        cur_status: &str,
+    ) -> anyhow::Result<Vec<(&NormalizedProgram, &NormalizedStatus)>> {
+        let program = self
+            .programs
+            .iter()
+            .find(|p| p.name == cur_program)
+            .ok_or(anyhow!("the program is not found."))?;
+        let status = self
+            .statuses
+            .iter()
+            .find(|s| s.program_id == program.id && s.name == cur_status)
+            .ok_or(anyhow!("the status is not found."))?;
+
+        let reports = self
+            .reports
+            .iter()
+            .filter(move |r| r.from_status_id == status.id);
+
+        let result = reports
+            .map(|r| {
+                let to_status = self
+                    .statuses
+                    .iter()
+                    .find(|s| s.id == r.to_status_id)
+                    .unwrap();
+                let to_program = self
+                    .programs
+                    .iter()
+                    .find(|p| p.id == to_status.program_id)
+                    .unwrap();
+                (to_program, to_status)
+            })
+            .collect();
+
+        Ok(result)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use anyhow::anyhow;
-
-    impl Usecase for UsecaseForMemory {
-        fn suggest_next_step(
-            &self,
-            cur_program: &str,
-            cur_status: &str,
-        ) -> anyhow::Result<Vec<(&NormalizedProgram, &NormalizedStatus)>> {
-            let program = self
-                .programs
-                .iter()
-                .find(|p| p.name == cur_program)
-                .ok_or(anyhow!("the program is not found."))?;
-            let status = self
-                .statuses
-                .iter()
-                .find(|s| s.program_id == program.id && s.name == cur_status)
-                .ok_or(anyhow!("the status is not found."))?;
-
-            let reports = self
-                .reports
-                .iter()
-                .filter(move |r| r.from_status_id == status.id);
-
-            let result = reports
-                .map(|r| {
-                    let to_status = self
-                        .statuses
-                        .iter()
-                        .find(|s| s.id == r.to_status_id)
-                        .unwrap();
-                    let to_program = self
-                        .programs
-                        .iter()
-                        .find(|p| p.id == to_status.program_id)
-                        .unwrap();
-                    (to_program, to_status)
-                })
-                .collect();
-
-            Ok(result)
-        }
-    }
 
     fn create_program_and_statuses(
         program_id: usize,

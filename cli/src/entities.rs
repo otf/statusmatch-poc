@@ -1,12 +1,15 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize)]
+pub type Entities = 
+    (Vec<NormalizedProgram>, Vec<NormalizedStatus>, Vec<NormalizedReport>);
+
+#[derive(Serialize, Deserialize)]
 pub struct NormalizedProgram {
     pub id: usize,
     pub name: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct NormalizedStatus {
     pub id: usize,
     pub program_id: usize,
@@ -21,7 +24,7 @@ pub enum ReportResult {
     CHALLENGE,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct NormalizedReport {
     pub id: usize,
     pub from_status_id: usize,

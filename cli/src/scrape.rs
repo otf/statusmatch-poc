@@ -1,9 +1,12 @@
 use crate::entities::*;
 use itertools::Itertools;
 use reqwest::blocking as req;
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use std::fs;
 use std::fs::create_dir_all;
 use std::fs::File;
+use std::io;
 use std::io::Write;
 use std::path::Path;
 
@@ -155,19 +158,35 @@ fn create_dir_if_not_exists(path: &str) -> std::io::Result<bool> {
     }
 }
 
-pub fn run() -> anyhow::Result<()> {
+fn load<T: DeserializeOwned>(path: &str) -> io::Result<Vec<T>> {
+    Ok(serde_json::from_str(&fs::read_to_string(path)?)?)
+}
+
+const PROGRAMS_PATH: &str = "data/programs.json";
+const STATUSES_PATH: &str = "data/statuses.json";
+const REPORTS_PATH: &str = "data/reports.json";
+
+pub fn run() -> anyhow::Result<Entities> {
+    let normalized_programs;
+    let normalized_statuses;
+    let normalized_reports;
+
     if !create_dir_if_not_exists("data")? {
         let program_and_statuses = retrieve_program_and_statuses()?;
-        let normalized_programs = normalize_programs(&program_and_statuses);
-        let normalized_statuses = normalize_statuses(&normalized_programs, &program_and_statuses);
+        normalized_programs = normalize_programs(&program_and_statuses);
+        normalized_statuses = normalize_statuses(&normalized_programs, &program_and_statuses);
         let reports = accumulate_reports(&normalized_programs)?;
-        let normalized_reports =
+        normalized_reports =
             normalize_reports(&normalized_programs, &normalized_statuses, &reports);
 
-        dump("data/programs.json", &normalized_programs)?;
-        dump("data/statuses.json", &normalized_statuses)?;
-        dump("data/reports.json", &normalized_reports)?;
+        dump(PROGRAMS_PATH, &normalized_programs)?;
+        dump(STATUSES_PATH, &normalized_statuses)?;
+        dump(REPORTS_PATH, &normalized_reports)?;
+    } else {
+        normalized_programs = load(PROGRAMS_PATH)?;
+        normalized_statuses = load(STATUSES_PATH)?;
+        normalized_reports = load(REPORTS_PATH)?;
     }
 
-    Ok(())
+    Ok((normalized_programs, normalized_statuses, normalized_reports))
 }
