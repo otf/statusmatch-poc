@@ -24,6 +24,19 @@ impl UsecaseForMemory {
             reports: reports,
         }
     }
+    fn find_program(&self, program: &str) -> anyhow::Result<&NormalizedProgram> {
+            self.programs
+            .iter()
+            .find(|p| p.name.to_lowercase().contains(&program.to_lowercase()))
+            .ok_or(anyhow!("the program is not found."))
+    }
+
+    fn find_status(&self, program: &NormalizedProgram, status: &str) -> anyhow::Result<&NormalizedStatus> {
+            self.statuses
+            .iter()
+            .find(|s| s.program_id == program.id && s.name.to_lowercase() == status.to_lowercase())
+            .ok_or(anyhow!("the status is not found."))
+    }
 }
 
 impl Usecase for UsecaseForMemory {
@@ -32,16 +45,8 @@ impl Usecase for UsecaseForMemory {
         cur_program: &str,
         cur_status: &str,
     ) -> anyhow::Result<Vec<(&NormalizedProgram, &NormalizedStatus)>> {
-        let program = self
-            .programs
-            .iter()
-            .find(|p| p.name == cur_program)
-            .ok_or(anyhow!("the program is not found."))?;
-        let status = self
-            .statuses
-            .iter()
-            .find(|s| s.program_id == program.id && s.name == cur_status)
-            .ok_or(anyhow!("the status is not found."))?;
+        let program = self.find_program(cur_program)?;
+        let status = self.find_status(program, cur_status)?;
 
         let reports = self
             .reports
@@ -155,6 +160,7 @@ mod tests {
 
     #[test_case(("Ascott Star Rewards", "Platinum"), ("Best Western Rewards", "Diamond Select"))]
     #[test_case(("IHG One Rewards", "Platinum Elite"), ("Marriott Bonvoy", "Gold Elite"); "Duplicated report has added.")]
+    #[test_case(("ihg", "platinum elite"), ("Marriott Bonvoy", "Gold Elite"); "Ambiguous input.")]
     fn should_be_able_to_suggest((from_program, from_status): (&str, &str), (to_program, to_status): (&str, &str)) {
         let usecase = create_usecase();
         if let [(NormalizedProgram { name: program, .. }, NormalizedStatus { name: status, .. }), ..] =
