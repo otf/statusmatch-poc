@@ -20,7 +20,7 @@ pub struct NormalizedStatus {
     pub name: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq)]
 pub enum ReportResult {
     MATCH,
     DENY,

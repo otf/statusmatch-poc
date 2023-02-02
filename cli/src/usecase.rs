@@ -69,6 +69,7 @@ impl Usecase for UsecaseForMemory {
         let reports = self
             .reports
             .iter()
+            .filter(|r| r.result == ReportResult::MATCH)
             .filter(move |r| r.from_status_id == status.id)
             .sorted_by(|a, b| {
                 let to_status_a = self.find_status_by_id(a.to_status_id).unwrap();
@@ -126,9 +127,25 @@ mod tests {
         }
     }
 
+    fn create_deny_report(
+        id: usize,
+        from_status_id: usize,
+        to_status_id: usize,
+    ) -> NormalizedReport {
+        NormalizedReport {
+            id,
+            from_status_id,
+            to_status_id,
+            result: ReportResult::DENY,
+        }
+    }
+
     fn create_usecase() -> UsecaseForMemory {
-        let (asr, asr_statuses) =
-            create_program_and_statuses(83822, "Ascott Star Rewards", vec![(83826, "Platinum")]);
+        let (asr, asr_statuses) = create_program_and_statuses(
+            83822,
+            "Ascott Star Rewards",
+            vec![(83823, "Classic"), (83826, "Platinum")],
+        );
         let (bestwestern, bestwestern_statuses) = create_program_and_statuses(
             21170,
             "Best Western Rewards",
@@ -148,6 +165,8 @@ mod tests {
 
         let ihg_marriott_report_dup = create_report(2, 35289, 22742);
 
+        let asr_to_marriott_deny_report = create_deny_report(3, 83823, 22740);
+
         UsecaseForMemory {
             programs: vec![asr, bestwestern, ihg, mariott],
             statuses: vec![
@@ -163,6 +182,7 @@ mod tests {
                 asr_to_bestwestern_report,
                 ihg_marriott_report_dup,
                 ihg_marriott_report,
+                asr_to_marriott_deny_report,
             ],
         }
     }
@@ -184,5 +204,15 @@ mod tests {
         } else {
             assert!(false);
         }
+    }
+
+    #[test_case("ascott", "classic")]
+    fn should_not_be_able_to_suggest(from_program: &str, from_status: &str) {
+        let usecase = create_usecase();
+        let result = usecase
+            .suggest_next_step(from_program, from_status)
+            .unwrap();
+
+        assert_eq!(result.into_iter().len(), 0);
     }
 }
