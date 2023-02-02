@@ -1,5 +1,6 @@
 use crate::entities::*;
 use anyhow::anyhow;
+use itertools::Itertools;
 
 pub trait Usecase {
     fn suggest_next_step(
@@ -45,7 +46,22 @@ impl Usecase for UsecaseForMemory {
         let reports = self
             .reports
             .iter()
-            .filter(move |r| r.from_status_id == status.id);
+            .filter(move |r| r.from_status_id == status.id)
+            .sorted_by(|a,b| {
+                let to_status_a = self
+                    .statuses
+                    .iter()
+                    .find(|s| s.id == a.to_status_id)
+                    .unwrap();
+                let to_status_b = self
+                    .statuses
+                    .iter()
+                    .find(|s| s.id == b.to_status_id)
+                    .unwrap();
+
+                to_status_b.pos.cmp(&to_status_a.pos)
+            })
+            .unique_by(|r| (r.from_status_id, r.to_status_id));
 
         let result = reports
             .map(|r| {
@@ -114,11 +130,13 @@ mod tests {
         let (ihg, ihg_statuses) =
             create_program_and_statuses(21207, "IHG One Rewards", &[(35289, "Platinum Elite")]);
         let (mariott, mariott_statuses) =
-            create_program_and_statuses(21221, "Marriott Bonvoy", &[(22740, "Gold Elite")]);
+            create_program_and_statuses(21221, "Marriott Bonvoy", &[(22742, "Silver Elite"), (22740, "Gold Elite")]);
 
         let asr_to_bestwestern_report = create_report(0, 83826, 551150);
 
         let ihg_marriott_report = create_report(1, 35289, 22740);
+
+        let ihg_marriott_report_dup = create_report(2, 35289, 22742);
 
         UsecaseForMemory {
             programs: vec![asr, bestwestern, ihg, mariott],
@@ -131,12 +149,12 @@ mod tests {
             .into_iter()
             .flatten()
             .collect(),
-            reports: vec![asr_to_bestwestern_report, ihg_marriott_report],
+            reports: vec![asr_to_bestwestern_report, ihg_marriott_report_dup, ihg_marriott_report],
         }
     }
 
     #[test_case(("Ascott Star Rewards", "Platinum"), ("Best Western Rewards", "Diamond Select"))]
-    #[test_case(("IHG One Rewards", "Platinum Elite"), ("Marriott Bonvoy", "Gold Elite"))]
+    #[test_case(("IHG One Rewards", "Platinum Elite"), ("Marriott Bonvoy", "Gold Elite"); "Duplicated report has added.")]
     fn should_be_able_to_suggest((from_program, from_status): (&str, &str), (to_program, to_status): (&str, &str)) {
         let usecase = create_usecase();
         if let [(NormalizedProgram { name: program, .. }, NormalizedStatus { name: status, .. }), ..] =
