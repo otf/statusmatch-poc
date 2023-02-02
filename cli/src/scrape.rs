@@ -1,4 +1,4 @@
-use crate::{NormalizedProgram, NormalizedReport, NormalizedStatus, ReportResult};
+use crate::entities::*;
 use itertools::Itertools;
 use reqwest::blocking as req;
 use serde::{Deserialize, Serialize};

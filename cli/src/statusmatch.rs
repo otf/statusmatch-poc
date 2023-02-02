@@ -1,4 +1,5 @@
-use crate::{usecase::Usecase, NormalizedProgram, NormalizedStatus};
+use crate::entities::*;
+use crate::Usecase;
 
 pub fn suggest_next_step<'a>(
     usecase: &'a dyn Usecase,
@@ -11,14 +12,8 @@ pub fn suggest_next_step<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{NormalizedStatus, NormalizedReport, ReportResult};
+    use crate::usecase::UsecaseForMemory;
     use anyhow::anyhow;
-
-    struct UsecaseForMemory {
-        programs: Vec<NormalizedProgram>,
-        statuses: Vec<NormalizedStatus>,
-        reports: Vec<NormalizedReport>,
-    }
 
     impl Usecase for UsecaseForMemory {
         fn suggest_next_step(
