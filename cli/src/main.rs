@@ -1,7 +1,10 @@
 use std::env;
 
 use anyhow::bail;
-use cli::{scrape, usecase::{UsecaseForMemory, Usecase}};
+use cli::{
+    scrape,
+    usecase::{Usecase, UsecaseForMemory},
+};
 
 fn main() -> anyhow::Result<()> {
     let data = scrape::run()?;

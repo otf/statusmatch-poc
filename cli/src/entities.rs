@@ -1,7 +1,10 @@
 use serde::{Deserialize, Serialize};
 
-pub type Entities = 
-    (Vec<NormalizedProgram>, Vec<NormalizedStatus>, Vec<NormalizedReport>);
+pub type Entities = (
+    Vec<NormalizedProgram>,
+    Vec<NormalizedStatus>,
+    Vec<NormalizedReport>,
+);
 
 #[derive(Serialize, Deserialize)]
 pub struct NormalizedProgram {
