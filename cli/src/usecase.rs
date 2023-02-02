@@ -96,17 +96,17 @@ mod tests {
     fn create_program_and_statuses(
         program_id: usize,
         program: &str,
-        statuses: &[(usize, &str)],
+        statuses: Vec<(usize, &str)>,
     ) -> (NormalizedProgram, Vec<NormalizedStatus>) {
         let program = NormalizedProgram {
             id: program_id,
             name: program.into(),
         };
         let statuses = statuses
-            .iter()
+            .into_iter()
             .enumerate()
             .map(|(pos, (id, name))| NormalizedStatus {
-                id: *id,
+                id: id,
                 pos,
                 name: name.to_string(),
                 program_id,
@@ -126,16 +126,16 @@ mod tests {
 
     fn create_usecase() -> UsecaseForMemory {
         let (asr, asr_statuses) =
-            create_program_and_statuses(83822, "Ascott Star Rewards", &[(83826, "Platinum")]);
+            create_program_and_statuses(83822, "Ascott Star Rewards", vec![(83826, "Platinum")]);
         let (bestwestern, bestwestern_statuses) = create_program_and_statuses(
             21170,
             "Best Western Rewards",
-            &[(551150, "Diamond Select")],
+            vec![(551150, "Diamond Select")],
         );
         let (ihg, ihg_statuses) =
-            create_program_and_statuses(21207, "IHG One Rewards", &[(35289, "Platinum Elite")]);
+            create_program_and_statuses(21207, "IHG One Rewards", vec![(35289, "Platinum Elite")]);
         let (mariott, mariott_statuses) =
-            create_program_and_statuses(21221, "Marriott Bonvoy", &[(22742, "Silver Elite"), (22740, "Gold Elite")]);
+            create_program_and_statuses(21221, "Marriott Bonvoy", vec![(22742, "Silver Elite"), (22740, "Gold Elite")]);
 
         let asr_to_bestwestern_report = create_report(0, 83826, 551150);
 
