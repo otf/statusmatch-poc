@@ -24,18 +24,34 @@ impl UsecaseForMemory {
             reports: reports,
         }
     }
-    fn find_program(&self, program: &str) -> anyhow::Result<&NormalizedProgram> {
+    fn find_program_by_name(&self, program: &str) -> anyhow::Result<&NormalizedProgram> {
             self.programs
             .iter()
             .find(|p| p.name.to_lowercase().contains(&program.to_lowercase()))
             .ok_or(anyhow!("the program is not found."))
     }
 
-    fn find_status(&self, program: &NormalizedProgram, status: &str) -> anyhow::Result<&NormalizedStatus> {
+    fn find_status_by_name(&self, program: &NormalizedProgram, status: &str) -> anyhow::Result<&NormalizedStatus> {
             self.statuses
             .iter()
             .find(|s| s.program_id == program.id && s.name.to_lowercase() == status.to_lowercase())
             .ok_or(anyhow!("the status is not found."))
+    }
+
+    fn find_status_by_id(&self, status_id: usize) -> anyhow::Result<&NormalizedStatus> {
+        self
+            .statuses
+            .iter()
+            .find(|s| s.id == status_id)
+            .ok_or(anyhow!("the status is not found."))
+    }
+
+    fn find_program_by_id(&self, program_id: usize) -> anyhow::Result<&NormalizedProgram> {
+        self
+            .programs
+            .iter()
+            .find(|p| p.id == program_id)
+            .ok_or(anyhow!("the program is not found."))
     }
 }
 
@@ -45,24 +61,16 @@ impl Usecase for UsecaseForMemory {
         cur_program: &str,
         cur_status: &str,
     ) -> anyhow::Result<Vec<(&NormalizedProgram, &NormalizedStatus)>> {
-        let program = self.find_program(cur_program)?;
-        let status = self.find_status(program, cur_status)?;
+        let program = self.find_program_by_name(cur_program)?;
+        let status = self.find_status_by_name(program, cur_status)?;
 
         let reports = self
             .reports
             .iter()
             .filter(move |r| r.from_status_id == status.id)
             .sorted_by(|a,b| {
-                let to_status_a = self
-                    .statuses
-                    .iter()
-                    .find(|s| s.id == a.to_status_id)
-                    .unwrap();
-                let to_status_b = self
-                    .statuses
-                    .iter()
-                    .find(|s| s.id == b.to_status_id)
-                    .unwrap();
+                let to_status_a = self.find_status_by_id(a.to_status_id).unwrap();
+                let to_status_b = self.find_status_by_id(b.to_status_id).unwrap();
 
                 to_status_b.pos.cmp(&to_status_a.pos)
             })
@@ -70,16 +78,8 @@ impl Usecase for UsecaseForMemory {
 
         let result = reports
             .map(|r| {
-                let to_status = self
-                    .statuses
-                    .iter()
-                    .find(|s| s.id == r.to_status_id)
-                    .unwrap();
-                let to_program = self
-                    .programs
-                    .iter()
-                    .find(|p| p.id == to_status.program_id)
-                    .unwrap();
+                let to_status = self.find_status_by_id(r.to_status_id).unwrap();
+                let to_program = self.find_program_by_id(to_status.program_id).unwrap();
                 (to_program, to_status)
             })
             .collect();
