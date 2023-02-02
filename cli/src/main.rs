@@ -10,8 +10,9 @@ fn main() -> anyhow::Result<()> {
     if let [_, cur_program, cur_status] = &env::args().collect::<Vec<_>>()[..] {
         let next_steps = usecase.suggest_next_step(&cur_program, &cur_status)?;
 
+        println!("Your next step:");
         for (next_program, next_status) in next_steps {
-            println!("Your next steps: {}({})", next_program.name, next_status.name);
+            println!("* {}({})", next_program.name, next_status.name);
         }
         Ok(())
     } else {
