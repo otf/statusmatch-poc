@@ -10,3 +10,5 @@ publish = false
 shuttle-service = { version = "0.9.0", features = ["web-axum"] }
 axum = "0.6.4"
 sync_wrapper = "0.1.2"
+shuttle-static-folder = "0.9.0"
+axum-extra = { version = "0.4.2", features = ["spa"] }
