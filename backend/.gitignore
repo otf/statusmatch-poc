@@ -21,6 +21,3 @@ Cargo.lock
 
 ### shuttle.rs ###
 Secrets.toml
-
-# frontend build files
-public/
