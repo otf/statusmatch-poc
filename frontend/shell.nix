@@ -5,6 +5,6 @@ with pkgs;
 
 mkShellNoCC {
   nativeBuildInputs = [
-    nodejs-18_x
+    nodejs-19_x
   ];
 }
