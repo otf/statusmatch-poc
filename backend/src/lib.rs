@@ -5,7 +5,7 @@ use axum_extra::routing::SpaRouter;
 use sync_wrapper::SyncWrapper;
 
 async fn hello_world() -> &'static str {
-    "Hello, world!"
+    "Hello, world! from Rust Backend"
 }
 
 #[shuttle_service::main]
