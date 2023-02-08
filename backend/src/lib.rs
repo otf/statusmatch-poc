@@ -2,7 +2,7 @@ use std::{path::PathBuf, vec};
 
 use axum::{extract::Query, http::StatusCode, response::IntoResponse, routing::get, Json, Router};
 use axum_extra::routing::SpaRouter;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use sync_wrapper::SyncWrapper;
 
 #[derive(Deserialize)]
@@ -10,10 +10,25 @@ struct SearchQuery {
     text: String,
 }
 
+#[derive(Serialize)]
+struct Programs {
+    id: i32,
+    name: String,
+}
+
+impl Programs {
+    fn new(id: i32, name: &str) -> Self {
+        Self {
+            id,
+            name: name.to_owned(),
+        }
+    }
+}
+
 async fn search_programs(Query(SearchQuery { text }): Query<SearchQuery>) -> impl IntoResponse {
     let programs = vec![
-        "Marriott Bonvoy".to_owned(),
-        "Best Western Rewards".to_owned(),
+        Programs::new(0, "Marriott Bonvoy"),
+        Programs::new(1, "Best Western Rewards"),
     ];
 
     if text.trim().is_empty() {
@@ -22,7 +37,7 @@ async fn search_programs(Query(SearchQuery { text }): Query<SearchQuery>) -> imp
 
     let result = programs
         .into_iter()
-        .filter(|p| p.to_lowercase().contains(&text.trim().to_lowercase()))
+        .filter(|p| p.name.to_lowercase().contains(&text.trim().to_lowercase()))
         .collect::<Vec<_>>();
 
     (StatusCode::OK, Json(result))
