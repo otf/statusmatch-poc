@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "start": "npm install && npx elm-live --path-to-elm=./node_modules/.bin/elm --dir=public src/Main.elm -- --output=public/dist/elm.compiled.js",
+    "start": "npm install && npx elm-live --path-to-elm=./node_modules/.bin/elm --dir=public src/Main.elm -- --output=public/dist/elm.compiled.js --debug",
     "build": "npx elm make --optimize --output public/dist/elm.compiled.js src/Main.elm"
   },
   "devDependencies": {
