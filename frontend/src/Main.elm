@@ -2,6 +2,7 @@ module Main exposing (..)
 
 import Browser
 import Element exposing (text)
+import Element.Input as Input
 import Html exposing (Html)
 
 
@@ -41,4 +42,9 @@ main =
 view : Model -> Html msg
 view () =
     Element.layout [] <|
-        text "Hello world!"
+        Input.text []
+            { onChange = Debug.todo
+            , text = ""
+            , placeholder = Nothing
+            , label = Input.labelLeft [] <| text "Search a program."
+            }
