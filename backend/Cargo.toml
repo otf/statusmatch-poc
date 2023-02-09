@@ -13,3 +13,4 @@ sync_wrapper = "0.1.2"
 shuttle-static-folder = "0.9.0"
 axum-extra = { version = "0.4.2", features = ["spa"] }
 serde = { version = "1.0.152", features = ["derive"] }
+serde_json = "1.0.93"

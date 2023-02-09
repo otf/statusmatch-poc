@@ -14,15 +14,27 @@ type alias Program_ =
     }
 
 
+type alias Status =
+    { id : Int
+    , name : String
+    }
+
+
 type alias Model =
     { searchText : String
     , programs : List Program_
+    , statuses : List Status
+    , selectedProgram : Maybe Program_
+    , selectedStatus : Maybe Status
     }
 
 
 type Msg
     = GotSearchText String
     | LoadPrograms (Result Http.Error (List Program_))
+    | LoadStatuses (Result Http.Error (List Status))
+    | ChooseProgram Program_
+    | ChooseStatus Status
 
 
 programDecoder : D.Decoder Program_
@@ -35,11 +47,29 @@ programListDecoder =
     D.list programDecoder
 
 
+statusDecoder : D.Decoder Status
+statusDecoder =
+    D.map2 Status (D.field "id" D.int) (D.field "name" D.string)
+
+
+statusListDecoder : D.Decoder (List Status)
+statusListDecoder =
+    D.list statusDecoder
+
+
 fetchPrograms : String -> Cmd Msg
 fetchPrograms text =
     Http.get
         { url = "api/programs/search?text=" ++ text
         , expect = Http.expectJson LoadPrograms programListDecoder
+        }
+
+
+fetchStatuses : Program_ -> Cmd Msg
+fetchStatuses program =
+    Http.get
+        { url = "api/statuses/find?program_id=" ++ String.fromInt program.id
+        , expect = Http.expectJson LoadStatuses statusListDecoder
         }
 
 
@@ -49,6 +79,9 @@ update msg model =
         GotSearchText text ->
             ( { model
                 | searchText = text
+                , selectedProgram = Nothing
+                , statuses = []
+                , selectedStatus = Nothing
               }
             , fetchPrograms text
             )
@@ -63,15 +96,44 @@ update msg model =
         LoadPrograms (Err _) ->
             ( model, Cmd.none )
 
+        LoadStatuses (Ok statuses) ->
+            ( { model
+                | statuses = statuses
+              }
+            , Cmd.none
+            )
 
-initModel : Model
-initModel =
-    { searchText = "", programs = [] }
+        LoadStatuses (Err _) ->
+            ( model, Cmd.none )
+
+        ChooseProgram program ->
+            ( { model
+                | selectedProgram = Just program
+              }
+            , fetchStatuses program
+            )
+
+        ChooseStatus status ->
+            ( { model
+                | selectedStatus = Just status
+              }
+            , Cmd.none
+            )
+
+
+initialModel : Model
+initialModel =
+    { searchText = ""
+    , programs = []
+    , statuses = []
+    , selectedProgram = Nothing
+    , selectedStatus = Nothing
+    }
 
 
 init : () -> ( Model, Cmd Msg )
 init () =
-    ( initModel, Cmd.none )
+    ( initialModel, Cmd.none )
 
 
 subscriptions : Model -> Sub msg
@@ -91,10 +153,16 @@ main =
 
 viewProgram : Program_ -> Element Msg
 viewProgram program =
-    text <|
-        String.fromInt program.id
-            ++ ":"
-            ++ program.name
+    let
+        asString =
+            String.fromInt program.id
+                ++ ":"
+                ++ program.name
+    in
+    Input.button []
+        { onPress = Just <| ChooseProgram program
+        , label = text asString
+        }
 
 
 viewProgramList : List Program_ -> Element Msg
@@ -109,6 +177,28 @@ viewProgramList programs =
         children
 
 
+viewStatus : Status -> Input.Option Status msg
+viewStatus status =
+    let
+        asString =
+            String.fromInt status.id
+                ++ ":"
+                ++ status.name
+    in
+    Input.option status <| text asString
+
+
+viewStatusList : List Status -> Maybe Status -> Element Msg
+viewStatusList statuses selected =
+    Input.radio
+        []
+        { onChange = ChooseStatus
+        , selected = selected
+        , label = Input.labelAbove [] <| text "Select your status"
+        , options = statuses |> List.map viewStatus
+        }
+
+
 viewFrom : Model -> Element Msg
 viewFrom model =
     Element.column
@@ -120,6 +210,7 @@ viewFrom model =
             , label = Input.labelLeft [] <| text "Search a program."
             }
         , viewProgramList model.programs
+        , viewStatusList model.statuses model.selectedStatus
         ]
 
 
