@@ -4,6 +4,8 @@ use axum::{extract::Query, http::StatusCode, response::IntoResponse, routing::ge
 use axum_extra::routing::SpaRouter;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use shuttle_secrets::SecretStore;
+use sqlx::PgPool;
 use sync_wrapper::SyncWrapper;
 
 #[derive(Serialize)]
@@ -108,8 +110,13 @@ async fn find_by_program_id(
 
 #[shuttle_service::main]
 async fn axum(
+    #[shuttle_shared_db::Postgres(local_uri = "{secrets.DATABASE_URL}")] pool: PgPool,
+    #[shuttle_secrets::Secrets] secret_store: SecretStore,
     #[shuttle_static_folder::StaticFolder(folder = "public")] static_folder: PathBuf,
 ) -> shuttle_service::ShuttleAxum {
+    std::env::set_var("DATABASE_URL", secret_store.get("DATABASE_URL").unwrap());
+    sqlx::migrate!().run(&pool).await.unwrap();
+
     let router = Router::new()
         .route("/api/programs/search", get(search_programs))
         .route("/api/statuses/find", get(find_by_program_id))
