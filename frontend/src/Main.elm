@@ -190,7 +190,7 @@ viewStatus status =
 
 viewStatusList : List Status -> Maybe Status -> Element Msg
 viewStatusList statuses selected =
-    Input.radio
+    Input.radioRow
         []
         { onChange = ChooseStatus
         , selected = selected
