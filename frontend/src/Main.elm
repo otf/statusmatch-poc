@@ -15,7 +15,7 @@ type alias Program_ =
 
 
 type alias Status =
-    { id : Int
+    { level : Int
     , name : String
     }
 
@@ -49,7 +49,7 @@ programListDecoder =
 
 statusDecoder : D.Decoder Status
 statusDecoder =
-    D.map2 Status (D.field "id" D.int) (D.field "name" D.string)
+    D.map2 Status (D.field "level" D.int) (D.field "name" D.string)
 
 
 statusListDecoder : D.Decoder (List Status)
@@ -181,7 +181,7 @@ viewStatus : Status -> Input.Option Status msg
 viewStatus status =
     let
         asString =
-            String.fromInt status.id
+            String.fromInt status.level
                 ++ ":"
                 ++ status.name
     in

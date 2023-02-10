@@ -1,66 +1,34 @@
 use std::{path::PathBuf, vec};
 
-use axum::{extract::Query, http::StatusCode, response::IntoResponse, routing::get, Json, Router};
+use axum::{
+    extract::{Query, State},
+    http::StatusCode,
+    response::IntoResponse,
+    routing::get,
+    Json, Router,
+};
 use axum_extra::routing::SpaRouter;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use shuttle_secrets::SecretStore;
 use sqlx::PgPool;
 use sync_wrapper::SyncWrapper;
 
-#[derive(Serialize)]
-struct Status {
-    id: i32,
-    name: String,
-}
-
-impl Status {
-    fn new(id: i32, name: &str) -> Self {
-        Self {
-            id,
-            name: name.to_owned(),
-        }
-    }
+#[derive(Clone)]
+struct AppState {
+    pool: PgPool,
 }
 
 #[derive(Serialize)]
 struct Program {
     id: i32,
     name: String,
-    statuses: Vec<Status>,
 }
 
-impl Program {
-    fn new(id: i32, name: &str, statuses: Vec<Status>) -> Self {
-        Self {
-            id,
-            name: name.to_owned(),
-            statuses,
-        }
-    }
-}
-
-fn create_programs() -> Vec<Program> {
-    vec![
-        Program::new(
-            0,
-            "Marriott Bonvoy",
-            vec![
-                Status::new(0, "Member"),
-                Status::new(1, "Silver Elite"),
-                Status::new(2, "Gold Elite"),
-            ],
-        ),
-        Program::new(
-            1,
-            "Best Western Rewards",
-            vec![
-                Status::new(3, "Blue"),
-                Status::new(4, "Gold"),
-                Status::new(5, "Plutinum"),
-            ],
-        ),
-    ]
+#[derive(Serialize)]
+struct Status {
+    program_id: i32,
+    level: i32,
+    name: String,
 }
 
 #[derive(Deserialize)]
@@ -68,25 +36,26 @@ struct SearchQuery {
     text: String,
 }
 
-async fn search_programs(Query(SearchQuery { text }): Query<SearchQuery>) -> impl IntoResponse {
-    let programs = create_programs();
-
+async fn search_programs(
+    state: State<AppState>,
+    Query(SearchQuery { text }): Query<SearchQuery>,
+) -> impl IntoResponse {
     if text.trim().is_empty() {
         return (StatusCode::OK, Json(vec![]));
     }
 
-    let program_jsons = programs
-        .into_iter()
-        .filter(|p| p.name.to_lowercase().contains(&text.trim().to_lowercase()))
-        .map(|p| {
-            json!({
-                "id": p.id,
-                "name": p.name
-            })
-        })
-        .collect::<Vec<_>>();
+    let mut conn = state.pool.acquire().await.unwrap();
 
-    (StatusCode::OK, Json(program_jsons))
+    let programs = sqlx::query_as!(
+        Program,
+        "SELECT * FROM programs WHERE LOWER(name) LIKE LOWER($1)",
+        format!("%{}%", text.trim()),
+    )
+    .fetch_all(&mut conn)
+    .await
+    .unwrap();
+
+    (StatusCode::OK, Json(programs))
 }
 
 #[derive(Deserialize)]
@@ -95,16 +64,19 @@ struct FindByProgramId {
 }
 
 async fn find_by_program_id(
+    state: State<AppState>,
     Query(FindByProgramId { program_id }): Query<FindByProgramId>,
 ) -> impl IntoResponse {
-    let programs = create_programs();
+    let mut conn = state.pool.acquire().await.unwrap();
 
-    let statuses = programs
-        .into_iter()
-        .find(|p| p.id == program_id)
-        .unwrap_or_else(|| panic!("The program is not found. {}", program_id)) // Todo: should returns 404
-        .statuses;
-
+    let statuses = sqlx::query_as!(
+        Status,
+        "SELECT * FROM program_statuses WHERE program_id = $1",
+        program_id,
+    )
+    .fetch_all(&mut conn)
+    .await
+    .unwrap();
     (StatusCode::OK, Json(statuses))
 }
 
@@ -120,7 +92,8 @@ async fn axum(
     let router = Router::new()
         .route("/api/programs/search", get(search_programs))
         .route("/api/statuses/find", get(find_by_program_id))
-        .merge(SpaRouter::new("/", static_folder).index_file("index.html"));
+        .merge(SpaRouter::new("/", static_folder).index_file("index.html"))
+        .with_state(AppState { pool });
     let sync_wrapper = SyncWrapper::new(router);
 
     Ok(sync_wrapper)
