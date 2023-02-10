@@ -75,7 +75,7 @@ impl Usecase for UsecaseForMemory {
                 let to_status_a = self.find_status_by_id(a.to_status_id).unwrap();
                 let to_status_b = self.find_status_by_id(b.to_status_id).unwrap();
 
-                to_status_b.pos.cmp(&to_status_a.pos)
+                to_status_b.level.cmp(&to_status_a.level)
             })
             .unique_by(|r| (r.from_status_id, r.to_status_id));
 
@@ -110,7 +110,7 @@ mod tests {
             .enumerate()
             .map(|(pos, (id, name))| NormalizedStatus {
                 id: id,
-                pos,
+                level: pos,
                 name: name.to_string(),
                 program_id,
             })

@@ -16,14 +16,17 @@ pub struct NormalizedProgram {
 pub struct NormalizedStatus {
     pub id: usize,
     pub program_id: usize,
-    pub pos: usize,
+    pub level: usize,
     pub name: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq)]
 pub enum ReportResult {
+    #[serde(rename(serialize = "match"))]
     MATCH,
+    #[serde(rename(serialize = "deny"))]
     DENY,
+    #[serde(rename(serialize = "challenge"))]
     CHALLENGE,
 }
 

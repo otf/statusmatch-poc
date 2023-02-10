@@ -93,7 +93,7 @@ fn normalize_statuses(
                 .map(|(i, row)| NormalizedStatus {
                     id: row.id,
                     program_id: program.id,
-                    pos: i,
+                    level: i,
                     name: row.name.clone(),
                 })
         })
