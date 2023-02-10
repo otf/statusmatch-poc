@@ -24,13 +24,13 @@ impl Status {
 }
 
 #[derive(Serialize)]
-struct Programs {
+struct Program {
     id: i32,
     name: String,
     statuses: Vec<Status>,
 }
 
-impl Programs {
+impl Program {
     fn new(id: i32, name: &str, statuses: Vec<Status>) -> Self {
         Self {
             id,
@@ -40,9 +40,9 @@ impl Programs {
     }
 }
 
-fn create_programs() -> Vec<Programs> {
+fn create_programs() -> Vec<Program> {
     vec![
-        Programs::new(
+        Program::new(
             0,
             "Marriott Bonvoy",
             vec![
@@ -51,7 +51,7 @@ fn create_programs() -> Vec<Programs> {
                 Status::new(2, "Gold Elite"),
             ],
         ),
-        Programs::new(
+        Program::new(
             1,
             "Best Western Rewards",
             vec![
