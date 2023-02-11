@@ -20,12 +20,19 @@ type alias Status =
     }
 
 
+type alias Link =
+    { program : String
+    , status : String
+    }
+
+
 type alias Model =
     { searchText : String
     , programs : List Program_
     , statuses : List Status
     , selectedProgram : Maybe Program_
     , selectedStatus : Maybe Status
+    , links : List Link
     }
 
 
@@ -33,8 +40,10 @@ type Msg
     = GotSearchText String
     | LoadPrograms (Result Http.Error (List Program_))
     | LoadStatuses (Result Http.Error (List Status))
+    | LoadLinks (Result Http.Error (List Link))
     | ChooseProgram Program_
     | ChooseStatus Status
+    | Diagnose
 
 
 programDecoder : D.Decoder Program_
@@ -57,6 +66,16 @@ statusListDecoder =
     D.list statusDecoder
 
 
+linkDecoder : D.Decoder Link
+linkDecoder =
+    D.map2 Link (D.field "program" D.string) (D.field "status" D.string)
+
+
+linkListDecoder : D.Decoder (List Link)
+linkListDecoder =
+    D.list linkDecoder
+
+
 fetchPrograms : String -> Cmd Msg
 fetchPrograms text =
     Http.get
@@ -70,6 +89,24 @@ fetchStatuses program =
     Http.get
         { url = "api/statuses/find?program_id=" ++ String.fromInt program.id
         , expect = Http.expectJson LoadStatuses statusListDecoder
+        }
+
+
+fetchLinks : Int -> Int -> Cmd Msg
+fetchLinks programId statusLevel =
+    let
+        strProgramId =
+            String.fromInt programId
+
+        strStatusLevel =
+            String.fromInt statusLevel
+
+        url =
+            "api/links/diagnose?program_id=" ++ strProgramId ++ "&status=" ++ strStatusLevel
+    in
+    Http.get
+        { url = url
+        , expect = Http.expectJson LoadLinks linkListDecoder
         }
 
 
@@ -106,6 +143,16 @@ update msg model =
         LoadStatuses (Err _) ->
             ( model, Cmd.none )
 
+        LoadLinks (Ok links) ->
+            ( { model
+                | links = links
+              }
+            , Cmd.none
+            )
+
+        LoadLinks (Err _) ->
+            ( model, Cmd.none )
+
         ChooseProgram program ->
             ( { model
                 | selectedProgram = Just program
@@ -120,6 +167,16 @@ update msg model =
             , Cmd.none
             )
 
+        Diagnose ->
+            case ( model.selectedProgram, model.selectedStatus ) of
+                ( Just program, Just status ) ->
+                    ( model
+                    , fetchLinks program.id status.level
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
+
 
 initialModel : Model
 initialModel =
@@ -128,6 +185,7 @@ initialModel =
     , statuses = []
     , selectedProgram = Nothing
     , selectedStatus = Nothing
+    , links = []
     }
 
 
@@ -199,8 +257,8 @@ viewStatusList statuses selected =
         }
 
 
-viewFrom : Model -> Element Msg
-viewFrom model =
+viewForm : Model -> Element Msg
+viewForm model =
     Element.column
         []
         [ Input.search []
@@ -214,7 +272,36 @@ viewFrom model =
         ]
 
 
+viewLink : Link -> Element msg
+viewLink link =
+    text (link.program ++ "(" ++ link.status ++ ")")
+
+
+viewResult : Model -> Element Msg
+viewResult model =
+    let
+        viewLinkList =
+            model.links |> List.map viewLink
+    in
+    Element.column
+        []
+        viewLinkList
+
+
+viewDiagnoseButton : Element Msg
+viewDiagnoseButton =
+    Input.button []
+        { onPress = Just <| Diagnose
+        , label = text "Diagnose"
+        }
+
+
 view : Model -> Html Msg
 view model =
     Element.layout [] <|
-        viewFrom model
+        Element.column
+            []
+            [ viewForm model
+            , viewDiagnoseButton
+            , viewResult model
+            ]

@@ -31,6 +31,12 @@ struct Status {
     name: String,
 }
 
+#[derive(Serialize)]
+struct Link {
+    program: String,
+    status: String,
+}
+
 #[derive(Deserialize)]
 struct SearchQuery {
     text: String,
@@ -80,6 +86,48 @@ async fn find_by_program_id(
     (StatusCode::OK, Json(statuses))
 }
 
+#[derive(Deserialize)]
+struct DiagnoseQuery {
+    program_id: i32,
+    status: i32,
+}
+
+async fn diagnose_links(
+    state: State<AppState>,
+    Query(DiagnoseQuery { program_id, status }): Query<DiagnoseQuery>,
+) -> impl IntoResponse {
+    let mut conn = state.pool.acquire().await.unwrap();
+
+    let links = sqlx::query_as!(
+        Link,
+        r#"
+            SELECT
+                (SELECT
+                    name
+                    FROM programs
+                    WHERE id = to_program_id
+                ) AS "program!",
+                (SELECT
+                    name
+                    FROM program_statuses
+                    WHERE program_id = to_program_id
+                    AND level = to_status_level
+                ) AS "status!"
+            FROM reports 
+            WHERE 
+                result = 'match'
+                AND from_program_id = $1
+                AND from_status_level = $2
+        "#,
+        program_id,
+        status
+    )
+    .fetch_all(&mut conn)
+    .await
+    .unwrap();
+    (StatusCode::OK, Json(links))
+}
+
 #[shuttle_service::main]
 async fn axum(
     #[shuttle_shared_db::Postgres(local_uri = "{secrets.DATABASE_URL}")] pool: PgPool,
@@ -92,6 +140,7 @@ async fn axum(
     let router = Router::new()
         .route("/api/programs/search", get(search_programs))
         .route("/api/statuses/find", get(find_by_program_id))
+        .route("/api/links/diagnose", get(diagnose_links))
         .merge(SpaRouter::new("/", static_folder).index_file("index.html"))
         .with_state(AppState { pool });
     let sync_wrapper = SyncWrapper::new(router);
