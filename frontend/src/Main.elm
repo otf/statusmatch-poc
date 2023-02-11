@@ -86,8 +86,15 @@ fetchPrograms text =
 
 fetchStatuses : Program_ -> Cmd Msg
 fetchStatuses program =
+    let
+        id =
+            String.fromInt program.id
+
+        url =
+            "api/programs/" ++ id ++ "/statuses"
+    in
     Http.get
-        { url = "api/statuses/find?program_id=" ++ String.fromInt program.id
+        { url = url
         , expect = Http.expectJson LoadStatuses statusListDecoder
         }
 
@@ -95,14 +102,14 @@ fetchStatuses program =
 fetchLinks : Program_ -> Status -> Cmd Msg
 fetchLinks program status =
     let
-        strProgramId =
+        id =
             String.fromInt program.id
 
-        strStatusLevel =
+        level =
             String.fromInt status.level
 
         url =
-            "api/links/diagnose?program_id=" ++ strProgramId ++ "&status=" ++ strStatusLevel
+            "api/programs/" ++ id ++ "/statuses/" ++ level ++ "/links"
     in
     Http.get
         { url = url

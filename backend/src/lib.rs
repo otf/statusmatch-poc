@@ -1,7 +1,7 @@
 use std::{path::PathBuf, vec};
 
 use axum::{
-    extract::{Query, State},
+    extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
     routing::get,
@@ -64,21 +64,13 @@ async fn search_programs(
     (StatusCode::OK, Json(programs))
 }
 
-#[derive(Deserialize)]
-struct FindByProgramId {
-    program_id: i32,
-}
-
-async fn find_by_program_id(
-    state: State<AppState>,
-    Query(FindByProgramId { program_id }): Query<FindByProgramId>,
-) -> impl IntoResponse {
+async fn get_statuses(state: State<AppState>, Path(id): Path<i32>) -> impl IntoResponse {
     let mut conn = state.pool.acquire().await.unwrap();
 
     let statuses = sqlx::query_as!(
         Status,
         "SELECT * FROM program_statuses WHERE program_id = $1",
-        program_id,
+        id,
     )
     .fetch_all(&mut conn)
     .await
@@ -86,15 +78,9 @@ async fn find_by_program_id(
     (StatusCode::OK, Json(statuses))
 }
 
-#[derive(Deserialize)]
-struct DiagnoseQuery {
-    program_id: i32,
-    status: i32,
-}
-
 async fn diagnose_links(
     state: State<AppState>,
-    Query(DiagnoseQuery { program_id, status }): Query<DiagnoseQuery>,
+    Path((id, level)): Path<(i32, i32)>,
 ) -> impl IntoResponse {
     let mut conn = state.pool.acquire().await.unwrap();
 
@@ -119,8 +105,8 @@ async fn diagnose_links(
                 AND from_program_id = $1
                 AND from_status_level = $2
         "#,
-        program_id,
-        status
+        id,
+        level
     )
     .fetch_all(&mut conn)
     .await
@@ -139,8 +125,11 @@ async fn axum(
 
     let router = Router::new()
         .route("/api/programs/search", get(search_programs))
-        .route("/api/statuses/find", get(find_by_program_id))
-        .route("/api/links/diagnose", get(diagnose_links))
+        .route("/api/programs/:id/statuses", get(get_statuses))
+        .route(
+            "/api/programs/:id/statuses/:level/links",
+            get(diagnose_links),
+        )
         .merge(SpaRouter::new("/", static_folder).index_file("index.html"))
         .with_state(AppState { pool });
     let sync_wrapper = SyncWrapper::new(router);
