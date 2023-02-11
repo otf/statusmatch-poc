@@ -28,11 +28,11 @@ type alias Link =
 
 type alias Model =
     { searchText : String
-    , programs : List Program_
-    , statuses : List Status
+    , programs : Maybe (List Program_)
+    , statuses : Maybe (List Status)
     , selectedProgram : Maybe Program_
     , selectedStatus : Maybe Status
-    , links : List Link
+    , links : Maybe (List Link)
     }
 
 
@@ -92,14 +92,14 @@ fetchStatuses program =
         }
 
 
-fetchLinks : Int -> Int -> Cmd Msg
-fetchLinks programId statusLevel =
+fetchLinks : Program_ -> Status -> Cmd Msg
+fetchLinks program status =
     let
         strProgramId =
-            String.fromInt programId
+            String.fromInt program.id
 
         strStatusLevel =
-            String.fromInt statusLevel
+            String.fromInt status.level
 
         url =
             "api/links/diagnose?program_id=" ++ strProgramId ++ "&status=" ++ strStatusLevel
@@ -117,7 +117,7 @@ update msg model =
             ( { model
                 | searchText = text
                 , selectedProgram = Nothing
-                , statuses = []
+                , statuses = Nothing
                 , selectedStatus = Nothing
               }
             , fetchPrograms text
@@ -125,7 +125,7 @@ update msg model =
 
         LoadPrograms (Ok programs) ->
             ( { model
-                | programs = programs
+                | programs = Just programs
               }
             , Cmd.none
             )
@@ -135,7 +135,7 @@ update msg model =
 
         LoadStatuses (Ok statuses) ->
             ( { model
-                | statuses = statuses
+                | statuses = Just statuses
               }
             , Cmd.none
             )
@@ -145,7 +145,7 @@ update msg model =
 
         LoadLinks (Ok links) ->
             ( { model
-                | links = links
+                | links = Just links
               }
             , Cmd.none
             )
@@ -168,24 +168,22 @@ update msg model =
             )
 
         Diagnose ->
-            case ( model.selectedProgram, model.selectedStatus ) of
-                ( Just program, Just status ) ->
-                    ( model
-                    , fetchLinks program.id status.level
-                    )
-
-                _ ->
-                    ( model, Cmd.none )
+            let
+                fetchCmd =
+                    Maybe.map2 fetchLinks model.selectedProgram model.selectedStatus
+                        |> Maybe.withDefault Cmd.none
+            in
+            ( model, fetchCmd )
 
 
 initialModel : Model
 initialModel =
     { searchText = ""
-    , programs = []
-    , statuses = []
+    , programs = Nothing
+    , statuses = Nothing
     , selectedProgram = Nothing
     , selectedStatus = Nothing
-    , links = []
+    , links = Nothing
     }
 
 
@@ -246,8 +244,8 @@ viewStatus status =
     Input.option status <| text asString
 
 
-viewStatusList : List Status -> Maybe Status -> Element Msg
-viewStatusList statuses selected =
+viewStatusList : Maybe Status -> List Status -> Element Msg
+viewStatusList selected statuses =
     Input.radioRow
         []
         { onChange = ChooseStatus
@@ -267,25 +265,37 @@ viewForm model =
             , placeholder = Nothing
             , label = Input.labelLeft [] <| text "Search a program."
             }
-        , viewProgramList model.programs
-        , viewStatusList model.statuses model.selectedStatus
+        , model.programs
+            |> Maybe.map viewProgramList
+            |> Maybe.withDefault Element.none
+        , model.statuses
+            |> Maybe.map (viewStatusList model.selectedStatus)
+            |> Maybe.withDefault Element.none
         ]
 
 
-viewLink : Link -> Element msg
+viewLink : Link -> Element Msg
 viewLink link =
     text (link.program ++ "(" ++ link.status ++ ")")
+
+
+viewLinkList : List Link -> List (Element Msg)
+viewLinkList links =
+    links
+        |> List.map viewLink
 
 
 viewResult : Model -> Element Msg
 viewResult model =
     let
-        viewLinkList =
-            model.links |> List.map viewLink
+        children =
+            model.links
+                |> Maybe.map viewLinkList
+                |> Maybe.withDefault []
     in
     Element.column
         []
-        viewLinkList
+        children
 
 
 viewDiagnoseButton : Element Msg
