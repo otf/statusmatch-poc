@@ -1,7 +1,7 @@
 use std::{path::PathBuf, vec};
 
 use axum::{
-    extract::{Path, Query, State},
+    extract::{FromRef, Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
     routing::get,
@@ -13,7 +13,7 @@ use shuttle_secrets::SecretStore;
 use sqlx::PgPool;
 use sync_wrapper::SyncWrapper;
 
-#[derive(Clone)]
+#[derive(Clone, FromRef)]
 struct AppState {
     pool: PgPool,
 }
@@ -43,14 +43,14 @@ struct SearchQuery {
 }
 
 async fn search_programs(
-    state: State<AppState>,
+    State(pool): State<PgPool>,
     Query(SearchQuery { text }): Query<SearchQuery>,
 ) -> impl IntoResponse {
     if text.trim().is_empty() {
         return (StatusCode::OK, Json(vec![]));
     }
 
-    let mut conn = state.pool.acquire().await.unwrap();
+    let mut conn = pool.acquire().await.unwrap();
 
     let programs = sqlx::query_as!(
         Program,
@@ -64,8 +64,8 @@ async fn search_programs(
     (StatusCode::OK, Json(programs))
 }
 
-async fn get_statuses(state: State<AppState>, Path(id): Path<i32>) -> impl IntoResponse {
-    let mut conn = state.pool.acquire().await.unwrap();
+async fn get_statuses(State(pool): State<PgPool>, Path(id): Path<i32>) -> impl IntoResponse {
+    let mut conn = pool.acquire().await.unwrap();
 
     let statuses = sqlx::query_as!(
         Status,
@@ -79,10 +79,10 @@ async fn get_statuses(state: State<AppState>, Path(id): Path<i32>) -> impl IntoR
 }
 
 async fn diagnose_links(
-    state: State<AppState>,
+    State(pool): State<PgPool>,
     Path((id, level)): Path<(i32, i32)>,
 ) -> impl IntoResponse {
-    let mut conn = state.pool.acquire().await.unwrap();
+    let mut conn = pool.acquire().await.unwrap();
 
     let links = sqlx::query_as!(
         Link,
