@@ -42,14 +42,14 @@ impl UsecaseForMemory {
             .ok_or(anyhow!("the status is not found."))
     }
 
-    fn find_status_by_id(&self, status_id: usize) -> anyhow::Result<&NormalizedStatus> {
+    pub fn find_status_by_id(&self, status_id: usize) -> anyhow::Result<&NormalizedStatus> {
         self.statuses
             .iter()
             .find(|s| s.id == status_id)
             .ok_or(anyhow!("the status is not found."))
     }
 
-    fn find_program_by_id(&self, program_id: usize) -> anyhow::Result<&NormalizedProgram> {
+    pub fn find_program_by_id(&self, program_id: usize) -> anyhow::Result<&NormalizedProgram> {
         self.programs
             .iter()
             .find(|p| p.id == program_id)
@@ -69,7 +69,7 @@ impl Usecase for UsecaseForMemory {
         let reports = self
             .reports
             .iter()
-            .filter(|r| r.result == ReportResult::MATCH)
+            .filter(|r| r.result == NormalizedReportResult::MATCH)
             .filter(move |r| r.from_status_id == status.id)
             .sorted_by(|a, b| {
                 let to_status_a = self.find_status_by_id(a.to_status_id).unwrap();

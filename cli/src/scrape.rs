@@ -28,6 +28,23 @@ struct ReportList {
     collection: Vec<Report>,
 }
 
+#[derive(Deserialize, Clone, Copy, Debug)]
+enum ReportResult {
+    MATCH,
+    DENY,
+    CHALLENGE,
+}
+
+impl From<ReportResult> for NormalizedReportResult {
+    fn from(item: ReportResult) -> Self {
+        match item {
+            ReportResult::MATCH => NormalizedReportResult::MATCH,
+            ReportResult::DENY => NormalizedReportResult::DENY,
+            ReportResult::CHALLENGE => NormalizedReportResult::CHALLENGE,
+        }
+    }
+}
+
 #[derive(Deserialize, Debug)]
 #[serde(rename_all(deserialize = "camelCase"))]
 struct Report {
@@ -139,7 +156,7 @@ fn normalize_reports(
                     id: report.id,
                     from_status_id: from_status_id,
                     to_status_id: to_status_id,
-                    result: report.result,
+                    result: report.result.into(),
                 })
             } else {
                 None

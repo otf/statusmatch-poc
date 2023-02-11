@@ -6,13 +6,13 @@ pub type Entities = (
     Vec<NormalizedReport>,
 );
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct NormalizedProgram {
     pub id: usize,
     pub name: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct NormalizedStatus {
     pub id: usize,
     pub program_id: usize,
@@ -20,20 +20,22 @@ pub struct NormalizedStatus {
     pub name: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq)]
-pub enum ReportResult {
-    #[serde(rename(serialize = "match"))]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, sqlx::Type)]
+#[sqlx(type_name = "report_result")]
+#[sqlx(rename_all = "lowercase")]
+pub enum NormalizedReportResult {
+    #[serde(rename = "match")]
     MATCH,
-    #[serde(rename(serialize = "deny"))]
+    #[serde(rename = "deny")]
     DENY,
-    #[serde(rename(serialize = "challenge"))]
+    #[serde(rename = "challenge")]
     CHALLENGE,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct NormalizedReport {
     pub id: usize,
     pub from_status_id: usize,
     pub to_status_id: usize,
-    pub result: ReportResult,
+    pub result: NormalizedReportResult,
 }
