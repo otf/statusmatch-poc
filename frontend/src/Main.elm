@@ -163,6 +163,7 @@ update msg model =
         ChooseProgram program ->
             ( { model
                 | selectedProgram = Just program
+                , searchText = program.name
               }
             , fetchStatuses program
             )
