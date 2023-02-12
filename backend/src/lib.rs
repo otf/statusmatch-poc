@@ -97,13 +97,14 @@ async fn diagnose_links(
                     name
                     FROM program_statuses
                     WHERE program_id = to_program_id
-                    AND level = to_status_level
+                    AND level = MAX(to_status_level)
                 ) AS "status!"
             FROM reports 
             WHERE 
                 result = 'match'
                 AND from_program_id = $1
-                AND from_status_level = $2
+                AND from_status_level <= $2
+            GROUP BY to_program_id
         "#,
         id,
         level
