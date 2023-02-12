@@ -87,7 +87,7 @@ async fn diagnose_links(
     let links = sqlx::query_as!(
         Link,
         r#"
-            SELECT
+            SELECT DISTINCT
                 (SELECT
                     name
                     FROM programs

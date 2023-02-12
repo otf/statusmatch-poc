@@ -1,5 +1,32 @@
 {
   "db": "PostgreSQL",
+  "68a7049b861dc53cfc5d18d8ccdaccf566b32d848a4c9a0947ea5c505670034c": {
+    "describe": {
+      "columns": [
+        {
+          "name": "program!",
+          "ordinal": 0,
+          "type_info": "Varchar"
+        },
+        {
+          "name": "status!",
+          "ordinal": 1,
+          "type_info": "Varchar"
+        }
+      ],
+      "nullable": [
+        null,
+        null
+      ],
+      "parameters": {
+        "Left": [
+          "Int4",
+          "Int4"
+        ]
+      }
+    },
+    "query": "\n            SELECT DISTINCT\n                (SELECT\n                    name\n                    FROM programs\n                    WHERE id = to_program_id\n                ) AS \"program!\",\n                (SELECT\n                    name\n                    FROM program_statuses\n                    WHERE program_id = to_program_id\n                    AND level = to_status_level\n                ) AS \"status!\"\n            FROM reports \n            WHERE \n                result = 'match'\n                AND from_program_id = $1\n                AND from_status_level = $2\n        "
+  },
   "be297becccc92af71b39feae24209e82a4f6ef7b828b75b5fac131bc63959e0d": {
     "describe": {
       "columns": [
@@ -31,33 +58,6 @@
       }
     },
     "query": "SELECT * FROM program_statuses WHERE program_id = $1"
-  },
-  "c4b9261a718066e015bd6cbddfe6adc6990c08c6d3f28d59600434112950842c": {
-    "describe": {
-      "columns": [
-        {
-          "name": "program!",
-          "ordinal": 0,
-          "type_info": "Varchar"
-        },
-        {
-          "name": "status!",
-          "ordinal": 1,
-          "type_info": "Varchar"
-        }
-      ],
-      "nullable": [
-        null,
-        null
-      ],
-      "parameters": {
-        "Left": [
-          "Int4",
-          "Int4"
-        ]
-      }
-    },
-    "query": "\n            SELECT\n                (SELECT\n                    name\n                    FROM programs\n                    WHERE id = to_program_id\n                ) AS \"program!\",\n                (SELECT\n                    name\n                    FROM program_statuses\n                    WHERE program_id = to_program_id\n                    AND level = to_status_level\n                ) AS \"status!\"\n            FROM reports \n            WHERE \n                result = 'match'\n                AND from_program_id = $1\n                AND from_status_level = $2\n        "
   },
   "c506654ce2ffd500d95e8a5fe71de622c90f02f3eb16a7476c2c5775ca2f9292": {
     "describe": {
