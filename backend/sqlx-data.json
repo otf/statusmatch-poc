@@ -1,5 +1,32 @@
 {
   "db": "PostgreSQL",
+  "5d99288290352ce56eb07cfa645e0eb69dc8ad9c5fb60f38b0add266c14fa7a1": {
+    "describe": {
+      "columns": [
+        {
+          "name": "program!",
+          "ordinal": 0,
+          "type_info": "Varchar"
+        },
+        {
+          "name": "status!",
+          "ordinal": 1,
+          "type_info": "Varchar"
+        }
+      ],
+      "nullable": [
+        null,
+        null
+      ],
+      "parameters": {
+        "Left": [
+          "Int4",
+          "Int4"
+        ]
+      }
+    },
+    "query": "\n            SELECT\n                (SELECT\n                    name\n                    FROM programs\n                    WHERE id = to_program_id\n                ) AS \"program!\",\n                (SELECT\n                    name\n                    FROM program_statuses\n                    WHERE program_id = to_program_id\n                    AND level = MAX(to_status_level)\n                ) AS \"status!\"\n            FROM reports \n            WHERE \n                result = 'match'\n                AND from_program_id = $1\n                AND from_status_level <= $2\n            GROUP BY to_program_id\n        "
+  },
   "be297becccc92af71b39feae24209e82a4f6ef7b828b75b5fac131bc63959e0d": {
     "describe": {
       "columns": [
@@ -57,32 +84,5 @@
       }
     },
     "query": "SELECT * FROM programs WHERE LOWER(name) LIKE LOWER($1)"
-  },
-  "d55ec6466a03a32c1849fcc96647bba09cde091a1b95320718901a041c99fcfd": {
-    "describe": {
-      "columns": [
-        {
-          "name": "program!",
-          "ordinal": 0,
-          "type_info": "Varchar"
-        },
-        {
-          "name": "status!",
-          "ordinal": 1,
-          "type_info": "Varchar"
-        }
-      ],
-      "nullable": [
-        null,
-        null
-      ],
-      "parameters": {
-        "Left": [
-          "Int4",
-          "Int4"
-        ]
-      }
-    },
-    "query": "\n            SELECT DISTINCT\n                (SELECT\n                    name\n                    FROM programs\n                    WHERE id = to_program_id\n                ) AS \"program!\",\n                (SELECT\n                    name\n                    FROM program_statuses\n                    WHERE program_id = to_program_id\n                    AND level = MAX(to_status_level)\n                ) AS \"status!\"\n            FROM reports \n            WHERE \n                result = 'match'\n                AND from_program_id = $1\n                AND from_status_level <= $2\n            GROUP BY to_program_id\n        "
   }
 }
