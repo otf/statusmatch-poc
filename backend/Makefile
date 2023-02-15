@@ -9,9 +9,7 @@ server: public
 
 .PHONY: deploy
 deploy: public
-	git add public/ && git commit -m 'add public to deploy static.'
-	-cargo shuttle deploy
-	git reset --hard HEAD^
+	cargo shuttle deploy
 
 .PHONY: clean
 clean:
