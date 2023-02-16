@@ -1,11 +1,16 @@
 module Main exposing (..)
 
 import Browser
-import Element exposing (Element, text)
-import Element.Input as Input
+import Element exposing (..)
+import Element.Background as Background
+import Element.Border as Border
+import Element.Font as Font
+import Element.Input as Input exposing (OptionState(..))
 import Html exposing (Html)
+import Html.Attributes as RawAttrs exposing (class)
 import Http
 import Json.Decode as D
+import MatrixTheme
 
 
 type alias Program_ =
@@ -43,7 +48,6 @@ type Msg
     | LoadLinks (Result Http.Error (List Link))
     | ChooseProgram Program_
     | ChooseStatus Status
-    | Diagnose
 
 
 programDecoder : D.Decoder Program_
@@ -169,19 +173,16 @@ update msg model =
             )
 
         ChooseStatus status ->
+            let
+                fetchCmd =
+                    Maybe.map2 fetchLinks model.selectedProgram (Just status)
+                        |> Maybe.withDefault Cmd.none
+            in
             ( { model
                 | selectedStatus = Just status
               }
-            , Cmd.none
+            , fetchCmd
             )
-
-        Diagnose ->
-            let
-                fetchCmd =
-                    Maybe.map2 fetchLinks model.selectedProgram model.selectedStatus
-                        |> Maybe.withDefault Cmd.none
-            in
-            ( model, fetchCmd )
 
 
 initialModel : Model
@@ -215,50 +216,65 @@ main =
         }
 
 
-viewProgram : Program_ -> Element Msg
-viewProgram program =
+viewProgram : Bool -> Program_ -> Element Msg
+viewProgram isSelected program =
     let
         asString =
-            String.fromInt program.id
-                ++ ":"
-                ++ program.name
+            if isSelected then
+                "[X] " ++ program.name
+
+            else
+                "[ ] " ++ program.name
     in
-    Input.button []
+    Input.button
+        [ Font.color MatrixTheme.foregroundColor2
+        , focused []
+        ]
         { onPress = Just <| ChooseProgram program
         , label = text asString
         }
 
 
-viewProgramList : List Program_ -> Element Msg
-viewProgramList programs =
+viewProgramList : Maybe Program_ -> List Program_ -> Element Msg
+viewProgramList selectedProgram programs =
     let
         children =
             programs
-                |> List.map viewProgram
+                |> List.take 3
+                |> List.map (\p -> viewProgram (Just p == selectedProgram) p)
     in
     Element.column
-        []
+        [ paddingXY 0 8
+        ]
         children
 
 
 viewStatus : Status -> Input.Option Status msg
 viewStatus status =
     let
-        asString =
-            String.fromInt status.level
-                ++ ":"
-                ++ status.name
+        viewOption state =
+            case state of
+                Idle ->
+                    text <| "[ ] " ++ status.name
+
+                Focused ->
+                    text <| "[ ] " ++ status.name
+
+                Selected ->
+                    text <| "[X] " ++ status.name
     in
-    Input.option status <| text asString
+    Input.optionWith status viewOption
 
 
 viewStatusList : Maybe Status -> List Status -> Element Msg
 viewStatusList selected statuses =
-    Input.radioRow
-        []
+    Input.radio
+        [ Font.color MatrixTheme.foregroundColor2
+        , paddingXY 0 8
+        ]
         { onChange = ChooseStatus
         , selected = selected
-        , label = Input.labelAbove [] <| text "Select your status"
+        , label = Input.labelAbove [ Font.bold ] <| text "STATUS: "
         , options = statuses |> List.map viewStatus
         }
 
@@ -266,15 +282,44 @@ viewStatusList selected statuses =
 viewForm : Model -> Element Msg
 viewForm model =
     Element.column
-        []
-        [ Input.search []
+        [ width fill
+        , Border.color MatrixTheme.foregroundColor
+        , Border.width 1
+        , padding 16
+        ]
+        [ Input.search
+            [ Input.focusedOnLoad
+            , width fill
+            , Background.color MatrixTheme.backgroundColor
+            , paddingXY 0 0
+            , Border.color MatrixTheme.foregroundColor
+            , Border.solid
+            , Border.rounded 0
+            , focused
+                [ Element.alpha 1.0
+                ]
+            , htmlAttribute <| RawAttrs.style "caret-color" "transparent"
+            , htmlAttribute <| RawAttrs.style "font-family" "inherit"
+            , htmlAttribute <| RawAttrs.style "font-size" "100%"
+            , Element.alpha 0.2
+            , inFront <|
+                Element.el
+                    [ htmlAttribute <| RawAttrs.class "caret"
+                    , moveDown 6.0
+                    , moveRight (10.0 * toFloat (String.length model.searchText |> max 1))
+                    , width (px 10)
+                    , height (px 20)
+                    , Background.color MatrixTheme.foregroundColor
+                    ]
+                    Element.none
+            ]
             { onChange = GotSearchText
             , text = model.searchText
             , placeholder = Nothing
-            , label = Input.labelLeft [] <| text "Search a program."
+            , label = Input.labelLeft [ Font.bold ] <| text "PROGRAM: "
             }
         , model.programs
-            |> Maybe.map viewProgramList
+            |> Maybe.map (viewProgramList model.selectedProgram)
             |> Maybe.withDefault Element.none
         , model.statuses
             |> Maybe.map (viewStatusList model.selectedStatus)
@@ -284,13 +329,40 @@ viewForm model =
 
 viewLink : Link -> Element Msg
 viewLink link =
-    text (link.program ++ "(" ++ link.status ++ ")")
+    text ("- " ++ link.program ++ "(" ++ link.status ++ ")")
+
+
+viewEmptyLinkList : Element Msg
+viewEmptyLinkList =
+    text "Oops. No status match."
 
 
 viewLinkList : List Link -> List (Element Msg)
 viewLinkList links =
-    links
-        |> List.map viewLink
+    if links |> List.isEmpty then
+        [ viewEmptyLinkList ]
+
+    else
+        links
+            |> List.map viewLink
+
+
+viewWelcome : Element Msg
+viewWelcome =
+    let
+        welcome =
+            """
+ 1. Enter the program name.
+ 2. Select a status.
+ 3. Find the best status match.
+    """
+    in
+    Element.el
+        [ Font.family [ Font.monospace ]
+        , htmlAttribute <| RawAttrs.style "font-size" "1vw"
+        ]
+    <|
+        text welcome
 
 
 viewResult : Model -> Element Msg
@@ -299,27 +371,31 @@ viewResult model =
         children =
             model.links
                 |> Maybe.map viewLinkList
-                |> Maybe.withDefault []
+                |> Maybe.withDefault [ viewWelcome ]
     in
     Element.column
-        []
+        [ Border.color MatrixTheme.foregroundColor
+        , Border.width 1
+        , padding 16
+        , width fill
+        , height fill
+        ]
         children
-
-
-viewDiagnoseButton : Element Msg
-viewDiagnoseButton =
-    Input.button []
-        { onPress = Just <| Diagnose
-        , label = text "Diagnose"
-        }
 
 
 view : Model -> Html Msg
 view model =
-    Element.layout [] <|
+    Element.layout
+        [ htmlAttribute <| RawAttrs.style "font-feature-settings" "\"palt\"" ]
+    <|
         Element.column
-            []
+            [ Element.padding 16
+            , Background.color MatrixTheme.backgroundColor
+            , Font.color MatrixTheme.foregroundColor
+            , Font.family [ MatrixTheme.font ]
+            , height fill
+            , width fill
+            ]
             [ viewForm model
-            , viewDiagnoseButton
             , viewResult model
             ]
