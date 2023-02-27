@@ -17,3 +17,9 @@ serde_json = "1.0.93"
 shuttle-shared-db = { version = "0.10.0", features = ["postgres", "sqlx"] }
 sqlx = { version = "0.6.2", features = ["postgres", "macros", "offline"] }
 shuttle-secrets = "0.10.0"
+
+[workspace]
+
+members = [
+    "dormyinn"
+]
