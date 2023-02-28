@@ -103,6 +103,14 @@ async fn auth(
             .await
             .unwrap();
 
+        sqlx::query!(
+            "INSERT INTO users (pubkey) VALUES ($1) ON CONFLICT DO NOTHING",
+            &key
+        )
+        .fetch_optional(&mut trans)
+        .await
+        .unwrap();
+
         trans.commit().await.unwrap();
     }
 

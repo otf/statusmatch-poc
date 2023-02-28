@@ -39,6 +39,18 @@
     },
     "query": "\n            SELECT\n                (SELECT\n                    name\n                    FROM programs\n                    WHERE id = to_program_id\n                ) AS \"program!\",\n                (SELECT\n                    name\n                    FROM program_statuses\n                    WHERE program_id = to_program_id\n                    AND level = MAX(to_status_level)\n                ) AS \"status!\"\n            FROM reports \n            WHERE \n                result = 'match'\n                AND from_program_id = $1\n                AND from_status_level <= $2\n            GROUP BY to_program_id\n        "
   },
+  "6a545d1821a571ae7f57cc0f6f2fffd4a5fe1e898d5ed39a7d0e043ef6910b02": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Bytea"
+        ]
+      }
+    },
+    "query": "INSERT INTO users (pubkey) VALUES ($1) ON CONFLICT DO NOTHING"
+  },
   "7e0d1ef8b1c14238473a8139f34b2c0bf2c0176ea4771cf5118ed4c9124193a2": {
     "describe": {
       "columns": [
