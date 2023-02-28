@@ -8,7 +8,9 @@ use axum::{
     Json, Router,
 };
 use axum_extra::routing::SpaRouter;
+use bech32::ToBase32;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use shuttle_secrets::SecretStore;
 use sqlx::PgPool;
 use sync_wrapper::SyncWrapper;
@@ -40,6 +42,18 @@ struct Link {
 #[derive(Deserialize)]
 struct SearchQuery {
     text: String,
+}
+
+async fn login(State(pool): State<PgPool>) -> impl IntoResponse {
+    let challenge: [u8; 32] = rand::random();
+    let k1 = hex::encode(challenge);
+    let url = format!("https://cachet.shuttleapp.rs/api/auth?tag=login&k1={}", &k1);
+    let encoded = bech32::encode("lnurl", url.to_base32(), bech32::Variant::Bech32).unwrap();
+    let resp = json!({
+        "lnurl": encoded,
+    });
+
+    (StatusCode::OK, Json(resp))
 }
 
 async fn search_programs(
@@ -125,6 +139,7 @@ async fn axum(
     sqlx::migrate!().run(&pool).await.unwrap();
 
     let router = Router::new()
+        .route("/api/login", get(login))
         .route("/api/programs/search", get(search_programs))
         .route("/api/programs/:id/statuses", get(get_statuses))
         .route(

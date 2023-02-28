@@ -11,6 +11,7 @@ import Html.Attributes as RawAttrs exposing (class)
 import Http
 import Json.Decode as D
 import MatrixTheme
+import QRCode
 
 
 type alias Program_ =
@@ -32,7 +33,8 @@ type alias Link =
 
 
 type alias Model =
-    { searchText : String
+    { lnurl : Maybe Lnurl
+    , searchText : String
     , programs : Maybe (List Program_)
     , statuses : Maybe (List Status)
     , selectedProgram : Maybe Program_
@@ -41,13 +43,23 @@ type alias Model =
     }
 
 
+type alias Lnurl =
+    String
+
+
 type Msg
     = GotSearchText String
+    | LoadLnurlAuth (Result Http.Error Lnurl)
     | LoadPrograms (Result Http.Error (List Program_))
     | LoadStatuses (Result Http.Error (List Status))
     | LoadLinks (Result Http.Error (List Link))
     | ChooseProgram Program_
     | ChooseStatus Status
+
+
+lnurlDecoder : D.Decoder Lnurl
+lnurlDecoder =
+    D.field "lnurl" D.string
 
 
 programDecoder : D.Decoder Program_
@@ -78,6 +90,14 @@ linkDecoder =
 linkListDecoder : D.Decoder (List Link)
 linkListDecoder =
     D.list linkDecoder
+
+
+fetchLnurlAuth : Cmd Msg
+fetchLnurlAuth =
+    Http.get
+        { url = "api/login"
+        , expect = Http.expectJson LoadLnurlAuth lnurlDecoder
+        }
 
 
 fetchPrograms : String -> Cmd Msg
@@ -134,6 +154,16 @@ update msg model =
             , fetchPrograms text
             )
 
+        LoadLnurlAuth (Ok lnurl) ->
+            ( { model
+                | lnurl = Just lnurl
+              }
+            , Cmd.none
+            )
+
+        LoadLnurlAuth (Err _) ->
+            ( model, Cmd.none )
+
         LoadPrograms (Ok programs) ->
             ( { model
                 | programs = Just programs
@@ -187,7 +217,8 @@ update msg model =
 
 initialModel : Model
 initialModel =
-    { searchText = ""
+    { lnurl = Nothing
+    , searchText = ""
     , programs = Nothing
     , statuses = Nothing
     , selectedProgram = Nothing
@@ -198,7 +229,7 @@ initialModel =
 
 init : () -> ( Model, Cmd Msg )
 init () =
-    ( initialModel, Cmd.none )
+    ( initialModel, fetchLnurlAuth )
 
 
 subscriptions : Model -> Sub msg
@@ -347,14 +378,31 @@ viewLinkList links =
             |> List.map viewLink
 
 
-viewWelcome : Element Msg
-viewWelcome =
+viewQrcodeLoading : Element msg
+viewQrcodeLoading =
+    text "Loading..."
+
+
+viewQrcode : Lnurl -> Element msg
+viewQrcode lnurl =
+    lnurl
+        |> QRCode.fromString
+        |> Result.map (QRCode.toSvg [] >> html)
+        |> Result.withDefault (text "Error while encoding to QRCode.")
+
+
+viewWelcome : Maybe Lnurl -> Element Msg
+viewWelcome lnurl =
     let
         welcome =
             """
  1. Enter the program name.
  2. Select a status.
  3. Find the best status match.
+
+ or
+
+ Login with Lightning
     """
     in
     Element.el
@@ -362,7 +410,12 @@ viewWelcome =
         , htmlAttribute <| RawAttrs.style "font-size" "1vw"
         ]
     <|
-        text welcome
+        column []
+            [ text welcome
+            , lnurl
+                |> Maybe.map viewQrcode
+                |> Maybe.withDefault viewQrcodeLoading
+            ]
 
 
 viewResult : Model -> Element Msg
@@ -371,7 +424,7 @@ viewResult model =
         children =
             model.links
                 |> Maybe.map viewLinkList
-                |> Maybe.withDefault [ viewWelcome ]
+                |> Maybe.withDefault [ viewWelcome model.lnurl ]
     in
     Element.column
         [ Border.color MatrixTheme.foregroundColor
