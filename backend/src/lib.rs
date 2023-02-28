@@ -9,6 +9,7 @@ use axum::{
 };
 use axum_extra::routing::SpaRouter;
 use bech32::ToBase32;
+use secp256k1::{ecdsa::Signature, Message, PublicKey, Secp256k1};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use shuttle_secrets::SecretStore;
@@ -46,13 +47,74 @@ struct SearchQuery {
 
 async fn login(State(pool): State<PgPool>) -> impl IntoResponse {
     let challenge: [u8; 32] = rand::random();
+    let mut conn = pool.acquire().await.unwrap();
+    sqlx::query!("INSERT INTO challenges VALUES($1)", &challenge)
+        .fetch_optional(&mut conn)
+        .await
+        .unwrap();
+
     let k1 = hex::encode(challenge);
     let url = format!("https://cachet.shuttleapp.rs/api/auth?tag=login&k1={}", &k1);
     let encoded = bech32::encode("lnurl", url.to_base32(), bech32::Variant::Bech32).unwrap();
+
     let resp = json!({
         "lnurl": encoded,
     });
 
+    (StatusCode::OK, Json(resp))
+}
+
+#[derive(Deserialize)]
+struct LnurlAuth {
+    k1: String,
+    sig: String,
+    key: String,
+}
+
+async fn auth(
+    State(pool): State<PgPool>,
+    Query(LnurlAuth { k1, sig, key }): Query<LnurlAuth>,
+) -> impl IntoResponse {
+    let k1 = hex::decode(&k1).unwrap();
+    let sig = hex::decode(&sig).unwrap();
+    let key = hex::decode(&key).unwrap();
+
+    {
+        let mut trans = pool.begin().await.unwrap();
+
+        let count = sqlx::query_scalar!(
+            "SELECT COUNT(challenge) FROM challenges WHERE challenge = $1",
+            &k1
+        )
+        .fetch_one(&mut trans)
+        .await
+        .unwrap();
+
+        if let Some(0) = count {
+            let resp = json!({
+                "status": "ERROR",
+                "reason": "Challenge is not found.",
+            });
+            return (StatusCode::OK, Json(resp));
+        }
+
+        sqlx::query!("DELETE FROM challenges WHERE challenge = $1", &k1)
+            .fetch_optional(&mut trans)
+            .await
+            .unwrap();
+
+        trans.commit().await.unwrap();
+    }
+
+    let secp = Secp256k1::verification_only();
+    let msg = Message::from_slice(&k1).unwrap();
+    let sig = Signature::from_der(&sig).unwrap();
+    let pk = PublicKey::from_slice(&key).unwrap();
+    secp.verify_ecdsa(&msg, &sig, &pk).unwrap();
+
+    let resp = json!({
+        "status": "OK",
+    });
     (StatusCode::OK, Json(resp))
 }
 
@@ -140,6 +202,7 @@ async fn axum(
 
     let router = Router::new()
         .route("/api/login", get(login))
+        .route("/api/auth", get(auth))
         .route("/api/programs/search", get(search_programs))
         .route("/api/programs/:id/statuses", get(get_statuses))
         .route(

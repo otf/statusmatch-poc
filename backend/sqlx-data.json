@@ -1,5 +1,17 @@
 {
   "db": "PostgreSQL",
+  "58c80aa36c2b5949777e4b3982ee6781506d36fc11b408770ab32155fee35bb5": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Bytea"
+        ]
+      }
+    },
+    "query": "INSERT INTO challenges VALUES($1)"
+  },
   "5d99288290352ce56eb07cfa645e0eb69dc8ad9c5fb60f38b0add266c14fa7a1": {
     "describe": {
       "columns": [
@@ -26,6 +38,38 @@
       }
     },
     "query": "\n            SELECT\n                (SELECT\n                    name\n                    FROM programs\n                    WHERE id = to_program_id\n                ) AS \"program!\",\n                (SELECT\n                    name\n                    FROM program_statuses\n                    WHERE program_id = to_program_id\n                    AND level = MAX(to_status_level)\n                ) AS \"status!\"\n            FROM reports \n            WHERE \n                result = 'match'\n                AND from_program_id = $1\n                AND from_status_level <= $2\n            GROUP BY to_program_id\n        "
+  },
+  "7e0d1ef8b1c14238473a8139f34b2c0bf2c0176ea4771cf5118ed4c9124193a2": {
+    "describe": {
+      "columns": [
+        {
+          "name": "count",
+          "ordinal": 0,
+          "type_info": "Int8"
+        }
+      ],
+      "nullable": [
+        null
+      ],
+      "parameters": {
+        "Left": [
+          "Bytea"
+        ]
+      }
+    },
+    "query": "SELECT COUNT(challenge) FROM challenges WHERE challenge = $1"
+  },
+  "8fba48dc216f612dd2a1eb3ce0201fbf7c5f29edbb4cd334e42f203160f574e5": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Bytea"
+        ]
+      }
+    },
+    "query": "DELETE FROM challenges WHERE challenge = $1"
   },
   "be297becccc92af71b39feae24209e82a4f6ef7b828b75b5fac131bc63959e0d": {
     "describe": {
