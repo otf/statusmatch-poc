@@ -21,6 +21,8 @@ rand = "0.8.5"
 hex = "0.4.3"
 bech32 = "0.9.1"
 secp256k1 = "0.26.0"
+tokio = { version = "1.22", features = ["full"] }
+dotenv = "0.15.0"
 
 [workspace]
 

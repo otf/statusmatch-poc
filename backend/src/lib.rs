@@ -1,4 +1,4 @@
-use std::{path::PathBuf, vec};
+use std::{env, path::PathBuf, vec};
 
 use axum::{
     extract::{FromRef, Path, Query, State},
@@ -17,10 +17,12 @@ use sqlx::PgPool;
 use sync_wrapper::SyncWrapper;
 
 type Challenge = String;
+type ServiceUrl = String;
 
 #[derive(Clone, FromRef)]
 struct AppState {
     pool: PgPool,
+    service_url: ServiceUrl,
 }
 
 #[derive(Serialize)]
@@ -47,7 +49,10 @@ struct SearchQuery {
     text: String,
 }
 
-async fn login(State(pool): State<PgPool>) -> impl IntoResponse {
+async fn login(
+    State(service_url): State<ServiceUrl>,
+    State(pool): State<PgPool>,
+) -> impl IntoResponse {
     let challenge: [u8; 32] = rand::random();
     let mut conn = pool.acquire().await.unwrap();
     sqlx::query!("INSERT INTO challenges (challenge) VALUES($1)", &challenge)
@@ -56,7 +61,7 @@ async fn login(State(pool): State<PgPool>) -> impl IntoResponse {
         .unwrap();
 
     let k1 = hex::encode(challenge);
-    let url = format!("https://cachet.shuttleapp.rs/api/auth?tag=login&k1={}", &k1);
+    let url = format!("{}/api/auth?tag=login&k1={}", &service_url, &k1);
     let encoded = bech32::encode("lnurl", url.to_base32(), bech32::Variant::Bech32).unwrap();
 
     let resp = json!({
@@ -227,16 +232,8 @@ async fn diagnose_links(
     (StatusCode::OK, Json(links))
 }
 
-#[shuttle_service::main]
-async fn axum(
-    #[shuttle_shared_db::Postgres(local_uri = "{secrets.DATABASE_URL}")] pool: PgPool,
-    #[shuttle_secrets::Secrets] secret_store: SecretStore,
-    #[shuttle_static_folder::StaticFolder(folder = "public")] static_folder: PathBuf,
-) -> shuttle_service::ShuttleAxum {
-    std::env::set_var("DATABASE_URL", secret_store.get("DATABASE_URL").unwrap());
-    sqlx::migrate!().run(&pool).await.unwrap();
-
-    let router = Router::new()
+pub fn router(service_url: &str, pool: PgPool, static_folder: &PathBuf) -> Router {
+    Router::new()
         .route("/api/login", get(login))
         .route("/api/login/:k1", get(get_login_status))
         .route("/api/auth", get(auth))
@@ -247,7 +244,23 @@ async fn axum(
             get(diagnose_links),
         )
         .merge(SpaRouter::new("/", static_folder).index_file("index.html"))
-        .with_state(AppState { pool });
+        .with_state(AppState {
+            service_url: service_url.to_string(),
+            pool,
+        })
+}
+
+#[shuttle_service::main]
+async fn shuttle_main(
+    #[shuttle_shared_db::Postgres(local_uri = "{secrets.DATABASE_URL}")] pool: PgPool,
+    #[shuttle_secrets::Secrets] secret_store: SecretStore,
+    #[shuttle_static_folder::StaticFolder(folder = "public")] static_folder: PathBuf,
+) -> shuttle_service::ShuttleAxum {
+    env::set_var("DATABASE_URL", secret_store.get("DATABASE_URL").unwrap());
+    let service_url = secret_store.get("SERVICE_URL").unwrap();
+    sqlx::migrate!().run(&pool).await.unwrap();
+
+    let router = router(&service_url, pool, &static_folder);
     let sync_wrapper = SyncWrapper::new(router);
 
     Ok(sync_wrapper)
