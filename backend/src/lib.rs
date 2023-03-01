@@ -16,6 +16,8 @@ use shuttle_secrets::SecretStore;
 use sqlx::PgPool;
 use sync_wrapper::SyncWrapper;
 
+type Challenge = String;
+
 #[derive(Clone, FromRef)]
 struct AppState {
     pool: PgPool,
@@ -48,7 +50,7 @@ struct SearchQuery {
 async fn login(State(pool): State<PgPool>) -> impl IntoResponse {
     let challenge: [u8; 32] = rand::random();
     let mut conn = pool.acquire().await.unwrap();
-    sqlx::query!("INSERT INTO challenges VALUES($1)", &challenge)
+    sqlx::query!("INSERT INTO challenges (challenge) VALUES($1)", &challenge)
         .fetch_optional(&mut conn)
         .await
         .unwrap();
@@ -59,6 +61,28 @@ async fn login(State(pool): State<PgPool>) -> impl IntoResponse {
 
     let resp = json!({
         "lnurl": encoded,
+        "k1": k1,
+    });
+
+    (StatusCode::OK, Json(resp))
+}
+
+async fn get_login_status(
+    State(pool): State<PgPool>,
+    Path(k1): Path<Challenge>,
+) -> impl IntoResponse {
+    let k1 = hex::decode(&k1).unwrap();
+    let mut conn = pool.acquire().await.unwrap();
+    let authenticated = sqlx::query_scalar!(
+        "SELECT authenticated FROM challenges WHERE challenge = $1",
+        &k1
+    )
+    .fetch_one(&mut conn)
+    .await
+    .unwrap();
+
+    let resp = json!({
+        "result": authenticated,
     });
 
     (StatusCode::OK, Json(resp))
@@ -98,10 +122,13 @@ async fn auth(
             return (StatusCode::OK, Json(resp));
         }
 
-        sqlx::query!("DELETE FROM challenges WHERE challenge = $1", &k1)
-            .fetch_optional(&mut trans)
-            .await
-            .unwrap();
+        sqlx::query!(
+            "UPDATE challenges SET authenticated = TRUE WHERE challenge = $1",
+            &k1
+        )
+        .fetch_optional(&mut trans)
+        .await
+        .unwrap();
 
         sqlx::query!(
             "INSERT INTO users (pubkey) VALUES ($1) ON CONFLICT DO NOTHING",
@@ -118,6 +145,7 @@ async fn auth(
     let msg = Message::from_slice(&k1).unwrap();
     let sig = Signature::from_der(&sig).unwrap();
     let pk = PublicKey::from_slice(&key).unwrap();
+
     secp.verify_ecdsa(&msg, &sig, &pk).unwrap();
 
     let resp = json!({
@@ -210,6 +238,7 @@ async fn axum(
 
     let router = Router::new()
         .route("/api/login", get(login))
+        .route("/api/login/:k1", get(get_login_status))
         .route("/api/auth", get(auth))
         .route("/api/programs/search", get(search_programs))
         .route("/api/programs/:id/statuses", get(get_statuses))

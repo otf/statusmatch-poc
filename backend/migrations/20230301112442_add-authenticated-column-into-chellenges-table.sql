@@ -1,0 +1,2 @@
+ALTER TABLE challenges
+ADD authenticated BOOLEAN NOT NULL DEFAULT FALSE;

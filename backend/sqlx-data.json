@@ -1,17 +1,5 @@
 {
   "db": "PostgreSQL",
-  "58c80aa36c2b5949777e4b3982ee6781506d36fc11b408770ab32155fee35bb5": {
-    "describe": {
-      "columns": [],
-      "nullable": [],
-      "parameters": {
-        "Left": [
-          "Bytea"
-        ]
-      }
-    },
-    "query": "INSERT INTO challenges VALUES($1)"
-  },
   "5d99288290352ce56eb07cfa645e0eb69dc8ad9c5fb60f38b0add266c14fa7a1": {
     "describe": {
       "columns": [
@@ -51,6 +39,18 @@
     },
     "query": "INSERT INTO users (pubkey) VALUES ($1) ON CONFLICT DO NOTHING"
   },
+  "6ce77856e50ef6f10c1fe68b8454fe0e3da70995b2b95a1c3c4f25e5f4998749": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Bytea"
+        ]
+      }
+    },
+    "query": "UPDATE challenges SET authenticated = TRUE WHERE challenge = $1"
+  },
   "7e0d1ef8b1c14238473a8139f34b2c0bf2c0176ea4771cf5118ed4c9124193a2": {
     "describe": {
       "columns": [
@@ -71,7 +71,7 @@
     },
     "query": "SELECT COUNT(challenge) FROM challenges WHERE challenge = $1"
   },
-  "8fba48dc216f612dd2a1eb3ce0201fbf7c5f29edbb4cd334e42f203160f574e5": {
+  "b112ffc0f21cdd055fc20b1c3fee05c270235339084f69cfc1b3753d69ec2907": {
     "describe": {
       "columns": [],
       "nullable": [],
@@ -81,7 +81,7 @@
         ]
       }
     },
-    "query": "DELETE FROM challenges WHERE challenge = $1"
+    "query": "INSERT INTO challenges (challenge) VALUES($1)"
   },
   "be297becccc92af71b39feae24209e82a4f6ef7b828b75b5fac131bc63959e0d": {
     "describe": {
@@ -140,5 +140,25 @@
       }
     },
     "query": "SELECT * FROM programs WHERE LOWER(name) LIKE LOWER($1)"
+  },
+  "d1eba1324dcbec0d0a79b78beb55f81af511d6f9ad3b09f3d90838828794f1a1": {
+    "describe": {
+      "columns": [
+        {
+          "name": "authenticated",
+          "ordinal": 0,
+          "type_info": "Bool"
+        }
+      ],
+      "nullable": [
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Bytea"
+        ]
+      }
+    },
+    "query": "SELECT authenticated FROM challenges WHERE challenge = $1"
   }
 }

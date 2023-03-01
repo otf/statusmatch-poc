@@ -12,6 +12,7 @@ import Http
 import Json.Decode as D
 import MatrixTheme
 import QRCode
+import Time
 
 
 type alias Program_ =
@@ -32,8 +33,15 @@ type alias Link =
     }
 
 
+type alias Challenge =
+    String
+
+
 type alias Model =
     { lnurl : Maybe Lnurl
+    , k1 : Maybe Challenge
+    , isAuth : Bool
+    , authResult : Maybe Bool
     , searchText : String
     , programs : Maybe (List Program_)
     , statuses : Maybe (List Status)
@@ -49,7 +57,9 @@ type alias Lnurl =
 
 type Msg
     = GotSearchText String
-    | LoadLnurlAuth (Result Http.Error Lnurl)
+    | AuthStatus
+    | LoadLnurlAuth (Result Http.Error ( Lnurl, Challenge ))
+    | LoadLnurlAuthResult (Result Http.Error Bool)
     | LoadPrograms (Result Http.Error (List Program_))
     | LoadStatuses (Result Http.Error (List Status))
     | LoadLinks (Result Http.Error (List Link))
@@ -57,9 +67,16 @@ type Msg
     | ChooseStatus Status
 
 
-lnurlDecoder : D.Decoder Lnurl
+lnurlDecoder : D.Decoder ( Lnurl, Challenge )
 lnurlDecoder =
-    D.field "lnurl" D.string
+    D.map2 (\lnurl challenge -> ( lnurl, challenge ))
+        (D.field "lnurl" D.string)
+        (D.field "k1" D.string)
+
+
+lnurlResultDecoder : D.Decoder Bool
+lnurlResultDecoder =
+    D.field "result" D.bool
 
 
 programDecoder : D.Decoder Program_
@@ -97,6 +114,14 @@ fetchLnurlAuth =
     Http.get
         { url = "api/login"
         , expect = Http.expectJson LoadLnurlAuth lnurlDecoder
+        }
+
+
+fetchLnurlAuthResult : Challenge -> Cmd Msg
+fetchLnurlAuthResult k1 =
+    Http.get
+        { url = "api/login/" ++ k1
+        , expect = Http.expectJson LoadLnurlAuthResult lnurlResultDecoder
         }
 
 
@@ -154,14 +179,33 @@ update msg model =
             , fetchPrograms text
             )
 
-        LoadLnurlAuth (Ok lnurl) ->
+        AuthStatus ->
+            ( model
+            , model.k1
+                |> Maybe.map fetchLnurlAuthResult
+                |> Maybe.withDefault Cmd.none
+            )
+
+        LoadLnurlAuth (Ok ( lnurl, k1 )) ->
             ( { model
                 | lnurl = Just lnurl
+                , k1 = Just k1
+                , isAuth = True
               }
             , Cmd.none
             )
 
         LoadLnurlAuth (Err _) ->
+            ( model, Cmd.none )
+
+        LoadLnurlAuthResult (Ok result) ->
+            ( { model
+                | authResult = Just result
+              }
+            , Cmd.none
+            )
+
+        LoadLnurlAuthResult (Err _) ->
             ( model, Cmd.none )
 
         LoadPrograms (Ok programs) ->
@@ -218,6 +262,9 @@ update msg model =
 initialModel : Model
 initialModel =
     { lnurl = Nothing
+    , k1 = Nothing
+    , authResult = Nothing
+    , isAuth = False
     , searchText = ""
     , programs = Nothing
     , statuses = Nothing
@@ -232,9 +279,13 @@ init () =
     ( initialModel, fetchLnurlAuth )
 
 
-subscriptions : Model -> Sub msg
+subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.none
+    if model.isAuth then
+        Time.every 1000 (always AuthStatus)
+
+    else
+        Sub.none
 
 
 main : Program () Model Msg
@@ -387,12 +438,21 @@ viewQrcode : Lnurl -> Element msg
 viewQrcode lnurl =
     lnurl
         |> QRCode.fromString
-        |> Result.map (QRCode.toSvg [] >> html)
+        |> Result.map (QRCode.toSvg [] >> html >> el [ Background.color (rgb255 255 255 255), width fill ])
         |> Result.withDefault (text "Error while encoding to QRCode.")
 
 
-viewWelcome : Maybe Lnurl -> Element Msg
-viewWelcome lnurl =
+viewAuthResult : Bool -> Element msg
+viewAuthResult result =
+    if result then
+        text "success"
+
+    else
+        text "failure"
+
+
+viewWelcome : Maybe Bool -> Maybe Lnurl -> Element Msg
+viewWelcome result lnurl =
     let
         welcome =
             """
@@ -415,6 +475,9 @@ viewWelcome lnurl =
             , lnurl
                 |> Maybe.map viewQrcode
                 |> Maybe.withDefault viewQrcodeLoading
+            , result
+                |> Maybe.map viewAuthResult
+                |> Maybe.withDefault none
             ]
 
 
@@ -424,7 +487,7 @@ viewResult model =
         children =
             model.links
                 |> Maybe.map viewLinkList
-                |> Maybe.withDefault [ viewWelcome model.lnurl ]
+                |> Maybe.withDefault [ viewWelcome model.authResult model.lnurl ]
     in
     Element.column
         [ Border.color MatrixTheme.foregroundColor
