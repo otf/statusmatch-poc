@@ -37,11 +37,21 @@ type alias Challenge =
     String
 
 
+type alias LnurlAuth =
+    { lnurl : Lnurl
+    , k1 : Challenge
+    }
+
+
+type AuthState
+    = AuthenticateLoading
+    | Authenticating LnurlAuth
+    | Authenticated
+    | AuthenticateFailed
+
+
 type alias Model =
-    { lnurl : Maybe Lnurl
-    , k1 : Maybe Challenge
-    , isAuth : Bool
-    , authResult : Maybe Bool
+    { authState : AuthState
     , searchText : String
     , programs : Maybe (List Program_)
     , statuses : Maybe (List Status)
@@ -57,7 +67,7 @@ type alias Lnurl =
 
 type Msg
     = GotSearchText String
-    | AuthStatus
+    | UpdateAuthState LnurlAuth
     | LoadLnurlAuth (Result Http.Error ( Lnurl, Challenge ))
     | LoadLnurlAuthResult (Result Http.Error Bool)
     | LoadPrograms (Result Http.Error (List Program_))
@@ -74,8 +84,8 @@ lnurlDecoder =
         (D.field "k1" D.string)
 
 
-lnurlResultDecoder : D.Decoder Bool
-lnurlResultDecoder =
+authStateDecoder : D.Decoder Bool
+authStateDecoder =
     D.field "result" D.bool
 
 
@@ -117,11 +127,11 @@ fetchLnurlAuth =
         }
 
 
-fetchLnurlAuthResult : Challenge -> Cmd Msg
-fetchLnurlAuthResult k1 =
+fetchLnurlAuthState : LnurlAuth -> Cmd Msg
+fetchLnurlAuthState { k1 } =
     Http.get
         { url = "api/login/" ++ k1
-        , expect = Http.expectJson LoadLnurlAuthResult lnurlResultDecoder
+        , expect = Http.expectJson LoadLnurlAuthResult authStateDecoder
         }
 
 
@@ -179,18 +189,14 @@ update msg model =
             , fetchPrograms text
             )
 
-        AuthStatus ->
+        UpdateAuthState lnurlAuth ->
             ( model
-            , model.k1
-                |> Maybe.map fetchLnurlAuthResult
-                |> Maybe.withDefault Cmd.none
+            , fetchLnurlAuthState lnurlAuth
             )
 
         LoadLnurlAuth (Ok ( lnurl, k1 )) ->
             ( { model
-                | lnurl = Just lnurl
-                , k1 = Just k1
-                , isAuth = True
+                | authState = Authenticating { lnurl = lnurl, k1 = k1 }
               }
             , Cmd.none
             )
@@ -200,7 +206,12 @@ update msg model =
 
         LoadLnurlAuthResult (Ok result) ->
             ( { model
-                | authResult = Just result
+                | authState =
+                    if result then
+                        Authenticated
+
+                    else
+                        model.authState
               }
             , Cmd.none
             )
@@ -261,10 +272,7 @@ update msg model =
 
 initialModel : Model
 initialModel =
-    { lnurl = Nothing
-    , k1 = Nothing
-    , authResult = Nothing
-    , isAuth = False
+    { authState = AuthenticateLoading
     , searchText = ""
     , programs = Nothing
     , statuses = Nothing
@@ -281,11 +289,12 @@ init () =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    if model.isAuth then
-        Time.every 1000 (always AuthStatus)
+    case model.authState of
+        Authenticating lnurlAuth ->
+            Time.every 1000 (always <| UpdateAuthState lnurlAuth)
 
-    else
-        Sub.none
+        _ ->
+            Sub.none
 
 
 main : Program () Model Msg
@@ -434,25 +443,16 @@ viewQrcodeLoading =
     text "Loading..."
 
 
-viewQrcode : Lnurl -> Element msg
-viewQrcode lnurl =
+viewQrcode : LnurlAuth -> Element msg
+viewQrcode { lnurl } =
     lnurl
         |> QRCode.fromString
         |> Result.map (QRCode.toSvg [] >> html >> el [ Background.color (rgb255 255 255 255), width fill ])
         |> Result.withDefault (text "Error while encoding to QRCode.")
 
 
-viewAuthResult : Bool -> Element msg
-viewAuthResult result =
-    if result then
-        text "success"
-
-    else
-        text "failure"
-
-
-viewWelcome : Maybe Bool -> Maybe Lnurl -> Element Msg
-viewWelcome result lnurl =
+viewWelcome : AuthState -> Element Msg
+viewWelcome authState =
     let
         welcome =
             """
@@ -472,12 +472,18 @@ viewWelcome result lnurl =
     <|
         column []
             [ text welcome
-            , lnurl
-                |> Maybe.map viewQrcode
-                |> Maybe.withDefault viewQrcodeLoading
-            , result
-                |> Maybe.map viewAuthResult
-                |> Maybe.withDefault none
+            , case authState of
+                AuthenticateLoading ->
+                    viewQrcodeLoading
+
+                Authenticating lnurlAuth ->
+                    viewQrcode lnurlAuth
+
+                Authenticated ->
+                    text "success"
+
+                AuthenticateFailed ->
+                    text "failure"
             ]
 
 
@@ -487,7 +493,7 @@ viewResult model =
         children =
             model.links
                 |> Maybe.map viewLinkList
-                |> Maybe.withDefault [ viewWelcome model.authResult model.lnurl ]
+                |> Maybe.withDefault [ viewWelcome model.authState ]
     in
     Element.column
         [ Border.color MatrixTheme.foregroundColor
