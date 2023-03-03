@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y \
 
 RUN npm run build
 
-FROM debian:buster-slim
+FROM debian:bullseye-20230227-slim
 
 RUN apt-get update && apt-get install -y \
     openssl \
