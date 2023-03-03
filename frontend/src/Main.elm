@@ -517,9 +517,19 @@ viewQrcodeLoading =
 
 viewQrcode : LnurlAuth -> Element msg
 viewQrcode { lnurl } =
+    let
+        toLink child =
+            link
+                [ Background.color (rgb255 255 255 255)
+                , width fill
+                ]
+                { url = "lightning:" ++ lnurl
+                , label = child
+                }
+    in
     lnurl
         |> QRCode.fromString
-        |> Result.map (QRCode.toSvg [] >> html >> el [ Background.color (rgb255 255 255 255), width fill ])
+        |> Result.map (QRCode.toSvg [] >> html >> toLink)
         |> Result.withDefault (text "Error while encoding to QRCode.")
 
 
