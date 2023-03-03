@@ -21,6 +21,7 @@ FROM debian:bullseye-20230227-slim
 
 RUN apt-get update && apt-get install -y \
     openssl \
+    chromium \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
