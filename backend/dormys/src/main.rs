@@ -1,6 +1,6 @@
 use std::env;
 
-use dormyinn::retrieve_status;
+use dormys::retrieve_status;
 
 fn main() -> anyhow::Result<()> {
     let args: Vec<_> = env::args().collect();

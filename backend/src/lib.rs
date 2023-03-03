@@ -96,7 +96,7 @@ async fn get_user_statuses(
     let statuses = stream! {
         for credential in credentials {
             let status =
-                dormyinn::retrieve_status(&credential.username, &credential.password).unwrap();
+                dormys::retrieve_status(&credential.username, &credential.password).unwrap();
             let user_status = sqlx::query_as!(UserStatus, r#"
                 SELECT
                     (
