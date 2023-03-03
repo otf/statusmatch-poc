@@ -1,0 +1,10 @@
+{
+    "targets": {
+        "statusmatch_poc": {
+            "inputs": [
+                "src/Main.elm"
+            ],
+            "output": "public/dist/elm.compiled.js"
+        }
+    }
+}

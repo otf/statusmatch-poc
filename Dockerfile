@@ -5,7 +5,7 @@ COPY backend/ ./
 
 RUN cargo build --release
 
-FROM node:18.14.2-bullseye-slim AS frontend-builder
+FROM node:19.7.0-bullseye-slim AS frontend-builder
 
 WORKDIR /usr/src/app
 COPY frontend/ ./
@@ -14,6 +14,10 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+RUN npm install -g npm@9.6.0 \
+    npm install -g elm@latest-0.19.1 \
+    npm ci --only=production
 
 RUN npm run build
 

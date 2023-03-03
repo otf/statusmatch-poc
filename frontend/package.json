@@ -1,11 +1,16 @@
 {
   "scripts": {
-    "start": "npm install && npx elm-live --path-to-elm=./node_modules/.bin/elm --dir=public src/Main.elm -- --output=public/dist/elm.compiled.js --debug",
-    "build": "npx elm make --output public/dist/elm.compiled.js src/Main.elm --debug"
+    "start": "npx run-pty % npx elm-watch hot % npm run esbuild -- --serve=8000 --servedir=public",
+    "build": "npx elm-watch make --optimize && npm run esbuild -- --minify",
+    "esbuild": "npx esbuild app.ts --bundle --outdir=public/dist --public-path=/dist/"
+  },
+  "dependencies": {
+    "elm": "^0.19.1-5",
+    "esbuild": "^0.17.10",
+    "elm-watch": "^1.1.2"
   },
   "devDependencies": {
-    "elm": "^0.19.1-5",
     "elm-format": "^0.8.5",
-    "elm-live": "^4.0.2"
+    "run-pty": "^4.0.3"
   }
 }
