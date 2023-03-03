@@ -3,6 +3,7 @@ FROM rust:1.67.1 AS backend-builder
 WORKDIR /usr/src/app
 COPY backend/ ./
 
+RUN echo 'SQLX_OFFLINE=true' >> .env
 RUN cargo build --release
 
 FROM node:19.7.0-bullseye-slim AS frontend-builder
