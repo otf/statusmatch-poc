@@ -1,6 +1,7 @@
 use async_stream::stream;
 use futures::stream::StreamExt;
 use std::{path::PathBuf, vec};
+use tower_http::services::ServeDir;
 
 use axum::{
     extract::{FromRef, Path, Query, State},
@@ -9,7 +10,6 @@ use axum::{
     routing::get,
     Json, Router,
 };
-use axum_extra::routing::SpaRouter;
 use bech32::ToBase32;
 use secp256k1::{ecdsa::Signature, Message, PublicKey, Secp256k1};
 use serde::{Deserialize, Serialize};
@@ -327,7 +327,7 @@ pub fn router(service_url: &str, pool: PgPool, static_folder: &PathBuf) -> Route
             "/api/programs/:id/statuses/:level/links",
             get(diagnose_links),
         )
-        .merge(SpaRouter::new("/", static_folder).index_file("index.html"))
+        .merge(Router::new().nest_service("/", ServeDir::new(static_folder)))
         .with_state(AppState {
             service_url: service_url.to_string(),
             pool,
