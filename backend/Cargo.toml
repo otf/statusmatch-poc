@@ -14,7 +14,7 @@ sqlx = { version = "0.6.2", features = ["postgres", "macros", "offline", "runtim
 hex = "0.4.3"
 bech32 = "0.9.1"
 secp256k1 = "0.26.0"
-tokio = { version = "1.22", features = ["full"] }
+tokio = { version = "1.26", features = ["full"] }
 dotenv = "0.15.0"
 dormys = { path = "dormys" }
 jsonwebtoken = "8.2.0"
