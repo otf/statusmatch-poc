@@ -1,5 +1,64 @@
 {
   "db": "PostgreSQL",
+  "1bb2ed5659c6d5f6c3c5c7fa8db39c418b1ba9766fbee3139410aced05a3d37c": {
+    "describe": {
+      "columns": [
+        {
+          "name": "program!: Program",
+          "ordinal": 0,
+          "type_info": "Record"
+        },
+        {
+          "name": "status!: Status",
+          "ordinal": 1,
+          "type_info": "Record"
+        }
+      ],
+      "nullable": [
+        null,
+        null
+      ],
+      "parameters": {
+        "Left": [
+          "Int4",
+          "Text"
+        ]
+      }
+    },
+    "query": "\n                SELECT\n                    (\n                        programs.id,\n                        programs.name\n                    ) AS \"program!: Program\",\n                    (\n                        program_statuses.program_id,\n                        program_statuses.level,\n                        program_statuses.name\n                    ) AS \"status!: Status\"\n                FROM program_statuses\n                INNER JOIN programs ON program_statuses.program_id = programs.id\n                WHERE\n                    programs.id = $1 AND\n                    program_statuses.name = $2\n                "
+  },
+  "2b1b75cd5ccb96bfd171428a0cffb5d534656ecbad8597dcad4483e5f487ee8a": {
+    "describe": {
+      "columns": [
+        {
+          "name": "program_id",
+          "ordinal": 0,
+          "type_info": "Int4"
+        },
+        {
+          "name": "username",
+          "ordinal": 1,
+          "type_info": "Varchar"
+        },
+        {
+          "name": "password",
+          "ordinal": 2,
+          "type_info": "Varchar"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Bytea"
+        ]
+      }
+    },
+    "query": "\n        SELECT\n            program_id,\n            username,\n            password\n        FROM\n            user_credentials \n        WHERE\n            user_pubkey = $1\n            AND program_id = 147\n        "
+  },
   "5d99288290352ce56eb07cfa645e0eb69dc8ad9c5fb60f38b0add266c14fa7a1": {
     "describe": {
       "columns": [
@@ -39,18 +98,6 @@
     },
     "query": "INSERT INTO users (pubkey) VALUES ($1) ON CONFLICT DO NOTHING"
   },
-  "6ce77856e50ef6f10c1fe68b8454fe0e3da70995b2b95a1c3c4f25e5f4998749": {
-    "describe": {
-      "columns": [],
-      "nullable": [],
-      "parameters": {
-        "Left": [
-          "Bytea"
-        ]
-      }
-    },
-    "query": "UPDATE challenges SET authenticated = TRUE WHERE challenge = $1"
-  },
   "7e0d1ef8b1c14238473a8139f34b2c0bf2c0176ea4771cf5118ed4c9124193a2": {
     "describe": {
       "columns": [
@@ -70,6 +117,39 @@
       }
     },
     "query": "SELECT COUNT(challenge) FROM challenges WHERE challenge = $1"
+  },
+  "804c2c63a110a284715546526538b82aa8274fd5ad3819dc21d1fdd4af746298": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Bytea",
+          "Bytea"
+        ]
+      }
+    },
+    "query": "UPDATE challenges SET user_pubkey = $1 WHERE challenge = $2"
+  },
+  "9d5a43616a3bf539d726cdbb8d4c80b72cdcfd788330df0136f6f18a869e80a0": {
+    "describe": {
+      "columns": [
+        {
+          "name": "pubkey!",
+          "ordinal": 0,
+          "type_info": "Bytea"
+        }
+      ],
+      "nullable": [
+        true
+      ],
+      "parameters": {
+        "Left": [
+          "Bytea"
+        ]
+      }
+    },
+    "query": "\n        SELECT user_pubkey AS \"pubkey!\" FROM challenges WHERE challenge = $1\n        "
   },
   "b112ffc0f21cdd055fc20b1c3fee05c270235339084f69cfc1b3753d69ec2907": {
     "describe": {
@@ -140,25 +220,5 @@
       }
     },
     "query": "SELECT * FROM programs WHERE LOWER(name) LIKE LOWER($1)"
-  },
-  "d1eba1324dcbec0d0a79b78beb55f81af511d6f9ad3b09f3d90838828794f1a1": {
-    "describe": {
-      "columns": [
-        {
-          "name": "authenticated",
-          "ordinal": 0,
-          "type_info": "Bool"
-        }
-      ],
-      "nullable": [
-        false
-      ],
-      "parameters": {
-        "Left": [
-          "Bytea"
-        ]
-      }
-    },
-    "query": "SELECT authenticated FROM challenges WHERE challenge = $1"
   }
 }

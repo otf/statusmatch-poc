@@ -27,6 +27,12 @@ type alias Status =
     }
 
 
+type alias UserStatus =
+    { program : Program_
+    , status : Status
+    }
+
+
 type alias Link =
     { program : String
     , status : String
@@ -35,6 +41,20 @@ type alias Link =
 
 type alias Challenge =
     String
+
+
+type alias AccessToken =
+    String
+
+
+type alias TokenType =
+    String
+
+
+type alias Auth =
+    { accessToken : AccessToken
+    , tokenType : TokenType
+    }
 
 
 type alias LnurlAuth =
@@ -46,7 +66,7 @@ type alias LnurlAuth =
 type AuthState
     = AuthenticateLoading
     | Authenticating LnurlAuth
-    | Authenticated
+    | Authenticated Auth
     | AuthenticateFailed
 
 
@@ -69,10 +89,11 @@ type Msg
     = GotSearchText String
     | UpdateAuthState LnurlAuth
     | LoadLnurlAuth (Result Http.Error ( Lnurl, Challenge ))
-    | LoadLnurlAuthResult (Result Http.Error Bool)
+    | LoadAuth (Result Http.Error Auth)
     | LoadPrograms (Result Http.Error (List Program_))
     | LoadStatuses (Result Http.Error (List Status))
     | LoadLinks (Result Http.Error (List Link))
+    | LoadUserStatuses (Result Http.Error (List UserStatus))
     | ChooseProgram Program_
     | ChooseStatus Status
 
@@ -84,9 +105,11 @@ lnurlDecoder =
         (D.field "k1" D.string)
 
 
-authStateDecoder : D.Decoder Bool
-authStateDecoder =
-    D.field "result" D.bool
+authorizationDecoder : D.Decoder Auth
+authorizationDecoder =
+    D.map2 Auth
+        (D.field "access_token" D.string)
+        (D.field "token_type" D.string)
 
 
 programDecoder : D.Decoder Program_
@@ -119,6 +142,18 @@ linkListDecoder =
     D.list linkDecoder
 
 
+userStatusDecoder : D.Decoder UserStatus
+userStatusDecoder =
+    D.map2 UserStatus
+        (D.field "program" programDecoder)
+        (D.field "status" statusDecoder)
+
+
+userStatusListDecoder : D.Decoder (List UserStatus)
+userStatusListDecoder =
+    D.list userStatusDecoder
+
+
 fetchLnurlAuth : Cmd Msg
 fetchLnurlAuth =
     Http.get
@@ -131,7 +166,7 @@ fetchLnurlAuthState : LnurlAuth -> Cmd Msg
 fetchLnurlAuthState { k1 } =
     Http.get
         { url = "api/login/" ++ k1
-        , expect = Http.expectJson LoadLnurlAuthResult authStateDecoder
+        , expect = Http.expectJson LoadAuth authorizationDecoder
         }
 
 
@@ -176,6 +211,21 @@ fetchLinks program status =
         }
 
 
+fetchUserStatuses : Auth -> Cmd Msg
+fetchUserStatuses { tokenType, accessToken } =
+    Http.request
+        { method = "GET"
+        , headers =
+            [ Http.header "Authorization" (tokenType ++ " " ++ accessToken)
+            ]
+        , url = "api/user/statuses"
+        , expect = Http.expectJson LoadUserStatuses userStatusListDecoder
+        , body = Http.emptyBody
+        , timeout = Nothing
+        , tracker = Nothing
+        }
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
@@ -204,19 +254,15 @@ update msg model =
         LoadLnurlAuth (Err _) ->
             ( model, Cmd.none )
 
-        LoadLnurlAuthResult (Ok result) ->
+        LoadAuth (Ok auth) ->
             ( { model
                 | authState =
-                    if result then
-                        Authenticated
-
-                    else
-                        model.authState
+                    Authenticated auth
               }
-            , Cmd.none
+            , fetchUserStatuses auth
             )
 
-        LoadLnurlAuthResult (Err _) ->
+        LoadAuth (Err _) ->
             ( model, Cmd.none )
 
         LoadPrograms (Ok programs) ->
@@ -247,6 +293,32 @@ update msg model =
             )
 
         LoadLinks (Err _) ->
+            ( model, Cmd.none )
+
+        LoadUserStatuses (Ok userStatuses) ->
+            let
+                userStatus =
+                    userStatuses |> List.head
+
+                ( newModel, cmd ) =
+                    userStatus
+                        |> Maybe.map
+                            (\{ program, status } ->
+                                ( { model
+                                    | selectedProgram = Just program
+                                    , selectedStatus = Just status
+                                    , programs = Just [ program ]
+                                  }
+                                , fetchStatuses program
+                                )
+                            )
+                        |> Maybe.withDefault ( model, Cmd.none )
+            in
+            ( newModel
+            , cmd
+            )
+
+        LoadUserStatuses (Err _) ->
             ( model, Cmd.none )
 
         ChooseProgram program ->
@@ -479,7 +551,7 @@ viewWelcome authState =
                 Authenticating lnurlAuth ->
                     viewQrcode lnurlAuth
 
-                Authenticated ->
+                Authenticated _ ->
                     text "success"
 
                 AuthenticateFailed ->

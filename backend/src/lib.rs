@@ -1,3 +1,5 @@
+use async_stream::stream;
+use futures::stream::StreamExt;
 use std::{env, path::PathBuf, vec};
 
 use axum::{
@@ -15,6 +17,8 @@ use serde_json::json;
 use shuttle_secrets::SecretStore;
 use sqlx::PgPool;
 use sync_wrapper::SyncWrapper;
+mod auth;
+use auth::{AuthError, Claims};
 
 type Challenge = String;
 type ServiceUrl = String;
@@ -25,13 +29,13 @@ struct AppState {
     service_url: ServiceUrl,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, sqlx::Type)]
 struct Program {
     id: i32,
     name: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, sqlx::Type)]
 struct Status {
     program_id: i32,
     level: i32,
@@ -47,6 +51,83 @@ struct Link {
 #[derive(Deserialize)]
 struct SearchQuery {
     text: String,
+}
+
+#[derive(Deserialize)]
+struct Credential {
+    program_id: i32,
+    username: String,
+    password: String,
+}
+
+#[derive(Serialize)]
+struct UserStatus {
+    program: Program,
+    status: Status,
+}
+
+async fn get_user_statuses(
+    Claims { sub, .. }: Claims,
+    State(pool): State<PgPool>,
+) -> impl IntoResponse {
+    let mut conn = pool.acquire().await.unwrap();
+
+    let pubkey = hex::decode(&sub).unwrap();
+
+    let credentials = sqlx::query_as!(
+        Credential,
+        r#"
+        SELECT
+            program_id,
+            username,
+            password
+        FROM
+            user_credentials 
+        WHERE
+            user_pubkey = $1
+            AND program_id = 147
+        "#,
+        &pubkey,
+    )
+    .fetch_all(&mut conn)
+    .await
+    .unwrap();
+
+    let statuses = stream! {
+        for credential in credentials {
+            let status =
+                dormyinn::retrieve_status(&credential.username, &credential.password).unwrap();
+            let user_status = sqlx::query_as!(UserStatus, r#"
+                SELECT
+                    (
+                        programs.id,
+                        programs.name
+                    ) AS "program!: Program",
+                    (
+                        program_statuses.program_id,
+                        program_statuses.level,
+                        program_statuses.name
+                    ) AS "status!: Status"
+                FROM program_statuses
+                INNER JOIN programs ON program_statuses.program_id = programs.id
+                WHERE
+                    programs.id = $1 AND
+                    program_statuses.name = $2
+                "#,
+                credential.program_id,
+                &status,
+            )
+            .fetch_optional(&mut conn)
+            .await
+            .unwrap();
+
+            yield user_status
+        }
+    };
+
+    let resp = json!(statuses.collect::<Vec<_>>().await);
+
+    (StatusCode::OK, Json(resp))
 }
 
 async fn login(
@@ -78,19 +159,22 @@ async fn get_login_status(
 ) -> impl IntoResponse {
     let k1 = hex::decode(&k1).unwrap();
     let mut conn = pool.acquire().await.unwrap();
-    let authenticated = sqlx::query_scalar!(
-        "SELECT authenticated FROM challenges WHERE challenge = $1",
-        &k1
+    let pubkey = sqlx::query_scalar!(
+        r#"
+        SELECT user_pubkey AS "pubkey!" FROM challenges WHERE challenge = $1
+        "#,
+        &k1,
     )
-    .fetch_one(&mut conn)
+    .fetch_optional(&mut conn)
     .await
     .unwrap();
 
-    let resp = json!({
-        "result": authenticated,
-    });
-
-    (StatusCode::OK, Json(resp))
+    if let Some(pubkey) = pubkey {
+        let auth = auth::authorize(pubkey).unwrap();
+        auth.into_response()
+    } else {
+        AuthError::WaitingForLogin.into_response()
+    }
 }
 
 #[derive(Deserialize)]
@@ -128,16 +212,17 @@ async fn auth(
         }
 
         sqlx::query!(
-            "UPDATE challenges SET authenticated = TRUE WHERE challenge = $1",
-            &k1
+            "INSERT INTO users (pubkey) VALUES ($1) ON CONFLICT DO NOTHING",
+            &key
         )
         .fetch_optional(&mut trans)
         .await
         .unwrap();
 
         sqlx::query!(
-            "INSERT INTO users (pubkey) VALUES ($1) ON CONFLICT DO NOTHING",
-            &key
+            "UPDATE challenges SET user_pubkey = $1 WHERE challenge = $2",
+            &key,
+            &k1,
         )
         .fetch_optional(&mut trans)
         .await
@@ -237,6 +322,7 @@ pub fn router(service_url: &str, pool: PgPool, static_folder: &PathBuf) -> Route
         .route("/api/login", get(login))
         .route("/api/login/:k1", get(get_login_status))
         .route("/api/auth", get(auth))
+        .route("/api/user/statuses", get(get_user_statuses))
         .route("/api/programs/search", get(search_programs))
         .route("/api/programs/:id/statuses", get(get_statuses))
         .route(

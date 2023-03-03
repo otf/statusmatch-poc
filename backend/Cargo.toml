@@ -8,7 +8,7 @@ publish = false
 
 [dependencies]
 shuttle-service = { version = "0.11", features = ["web-axum"] }
-axum = { version = "0.6.9", features = ["macros"] }
+axum = { version = "0.6.9", features = ["macros", "headers"] }
 sync_wrapper = "0.1.2"
 shuttle-static-folder = "0.11"
 axum-extra = { version = "0.4.2", features = ["spa"] }
@@ -23,6 +23,12 @@ bech32 = "0.9.1"
 secp256k1 = "0.26.0"
 tokio = { version = "1.22", features = ["full"] }
 dotenv = "0.15.0"
+dormyinn = { path = "dormyinn" }
+jsonwebtoken = "8.2.0"
+once_cell = "1.17.1"
+futures = "0.3.26"
+async-stream = "0.3.4"
+chrono = "0.4.23"
 
 [workspace]
 
