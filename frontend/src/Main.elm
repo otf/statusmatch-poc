@@ -7,7 +7,7 @@ import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input exposing (OptionState(..))
 import Html exposing (Html)
-import Html.Attributes as RawAttrs exposing (class)
+import Html.Attributes as RawAttrs
 import Http
 import Json.Decode as D
 import MatrixTheme
