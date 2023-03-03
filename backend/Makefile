@@ -4,12 +4,7 @@ public:
 
 .PHONY: server
 server: public
-	cargo shuttle run
-	
-
-.PHONY: deploy
-deploy: public
-	cargo shuttle deploy
+	cargo run
 
 .PHONY: clean
 clean:

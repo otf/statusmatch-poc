@@ -1,6 +1,6 @@
 use async_stream::stream;
 use futures::stream::StreamExt;
-use std::{env, path::PathBuf, vec};
+use std::{path::PathBuf, vec};
 
 use axum::{
     extract::{FromRef, Path, Query, State},
@@ -14,9 +14,7 @@ use bech32::ToBase32;
 use secp256k1::{ecdsa::Signature, Message, PublicKey, Secp256k1};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use shuttle_secrets::SecretStore;
 use sqlx::PgPool;
-use sync_wrapper::SyncWrapper;
 mod auth;
 use auth::{AuthError, Claims};
 
@@ -334,20 +332,4 @@ pub fn router(service_url: &str, pool: PgPool, static_folder: &PathBuf) -> Route
             service_url: service_url.to_string(),
             pool,
         })
-}
-
-#[shuttle_service::main]
-async fn shuttle_main(
-    #[shuttle_shared_db::Postgres(local_uri = "{secrets.DATABASE_URL}")] pool: PgPool,
-    #[shuttle_secrets::Secrets] secret_store: SecretStore,
-    #[shuttle_static_folder::StaticFolder(folder = "public")] static_folder: PathBuf,
-) -> shuttle_service::ShuttleAxum {
-    env::set_var("DATABASE_URL", secret_store.get("DATABASE_URL").unwrap());
-    let service_url = secret_store.get("SERVICE_URL").unwrap();
-    sqlx::migrate!().run(&pool).await.unwrap();
-
-    let router = router(&service_url, pool, &static_folder);
-    let sync_wrapper = SyncWrapper::new(router);
-
-    Ok(sync_wrapper)
 }
