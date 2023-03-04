@@ -1,5 +1,6 @@
 <!DOCTYPE HTML>
 <html>
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, pinitial-scale=1">
@@ -12,16 +13,64 @@
     }
 
     @keyframes blink {
+
       from,
       to {
         background-color: transparent;
       }
+
       50% {
         background-color: #00FF00;
       }
     }
+
+    .spinner:after {
+      animation: changeContent .8s linear infinite;
+      display: block;
+      content: "⠋";
+      font-size: 18px;
+    }
+
+    @keyframes changeContent {
+      10% {
+        content: "⠙";
+      }
+
+      20% {
+        content: "⠹";
+      }
+
+      30% {
+        content: "⠸";
+      }
+
+      40% {
+        content: "⠼";
+      }
+
+      50% {
+        content: "⠴";
+      }
+
+      60% {
+        content: "⠦";
+      }
+
+      70% {
+        content: "⠧";
+      }
+
+      80% {
+        content: "⠇";
+      }
+
+      90% {
+        content: "⠏";
+      }
+    }
   </style>
 </head>
+
 <body>
   <div id="app"></div>
   <script type="module">
@@ -30,4 +79,5 @@
     });
   </script>
 </body>
+
 </html>

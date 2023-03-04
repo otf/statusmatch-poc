@@ -72,6 +72,7 @@ type AuthState
 
 type alias Model =
     { authState : AuthState
+    , isLoading : Bool
     , searchText : String
     , programs : Maybe (List Program_)
     , statuses : Maybe (List Status)
@@ -258,6 +259,7 @@ update msg model =
             ( { model
                 | authState =
                     Authenticated auth
+                , isLoading = True
               }
             , fetchUserStatuses auth
             )
@@ -308,6 +310,7 @@ update msg model =
                                     | selectedProgram = Just program
                                     , selectedStatus = Just status
                                     , programs = Just [ program ]
+                                    , isLoading = False
                                   }
                                 , fetchStatuses program
                                 )
@@ -346,6 +349,7 @@ initialModel : Model
 initialModel =
     { authState = AuthenticateLoading
     , searchText = ""
+    , isLoading = False
     , programs = Nothing
     , statuses = Nothing
     , selectedProgram = Nothing
@@ -444,12 +448,31 @@ viewStatusList selected statuses =
 
 viewForm : Model -> Element Msg
 viewForm model =
-    Element.column
+    Element.el
         [ width fill
         , Border.color MatrixTheme.foregroundColor
         , Border.width 1
         , padding 16
         ]
+    <|
+        if model.isLoading then
+            viewFormLoading
+
+        else
+            viewFormMain model
+
+
+viewFormLoading : Element msg
+viewFormLoading =
+    row [ spacing 8 ]
+        [ el [ htmlAttribute <| RawAttrs.class "spinner" ] none
+        , text "Retrieving your loyality accounts. Wait a minute."
+        ]
+
+
+viewFormMain : Model -> Element Msg
+viewFormMain model =
+    column []
         [ Input.search
             [ Input.focusedOnLoad
             , width fill
