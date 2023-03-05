@@ -16,7 +16,8 @@ import Time
 
 
 type AuthState
-    = AuthenticateLoading
+    = Unauthenticated
+    | AuthenticateLoading
     | Authenticating LnurlAuth
     | Authenticated Auth
     | AuthenticateFailed
@@ -44,7 +45,8 @@ type alias Model =
 
 
 type Msg
-    = GotSearchText AccountListForm String
+    = Login
+    | GotSearchText AccountListForm String
     | UpdateAuthState LnurlAuth
     | LoadLnurlAuth (Result Http.Error LnurlAuth)
     | LoadAuth (Result Http.Error Auth)
@@ -59,6 +61,9 @@ type Msg
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        Login ->
+            ( model, fetchLnurlAuth LoadLnurlAuth )
+
         GotSearchText form text ->
             let
                 newForm =
@@ -216,7 +221,7 @@ update msg model =
 
 initialModel : Model
 initialModel =
-    { authState = AuthenticateLoading
+    { authState = Unauthenticated
     , accountListState =
         AccountListWith
             { searchText = ""
@@ -231,7 +236,7 @@ initialModel =
 
 init : () -> ( Model, Cmd Msg )
 init () =
-    ( initialModel, fetchLnurlAuth LoadLnurlAuth )
+    ( initialModel, Cmd.none )
 
 
 subscriptions : Model -> Sub Msg
@@ -438,8 +443,6 @@ viewWelcome authState =
  3. Find the best status match.
 
  or
-
- Login with Lightning
     """
     in
     Element.el
@@ -450,6 +453,23 @@ viewWelcome authState =
         column []
             [ text welcome
             , case authState of
+                Unauthenticated ->
+                    Input.button
+                        [ Background.color MatrixTheme.yellowColor
+                        , Font.size 16
+                        , Font.family [ MatrixTheme.robotoFont ]
+                        , Font.color MatrixTheme.buttonForegroudColor
+                        , padding 8
+                        , Border.rounded 8
+                        ]
+                        { onPress = Just Login
+                        , label =
+                            row []
+                                [ MatrixTheme.lightningSvg
+                                , text "Login with Lightning"
+                                ]
+                        }
+
                 AuthenticateLoading ->
                     viewQrcodeLoading
 
