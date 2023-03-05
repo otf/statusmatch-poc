@@ -63,8 +63,8 @@ lnurlAuthDecoder =
         (D.field "k1" D.string)
 
 
-authorizationDecoder : D.Decoder Auth
-authorizationDecoder =
+authDecoder : D.Decoder Auth
+authDecoder =
     D.map2 Auth
         (D.field "access_token" D.string)
         (D.field "token_type" D.string)
@@ -130,7 +130,7 @@ fetchLnurlAuthState : LnurlAuth -> (Result Http.Error Auth -> msg) -> Cmd msg
 fetchLnurlAuthState { k1 } tagger =
     Http.get
         { url = "api/login/" ++ k1
-        , expect = Http.expectJson tagger authorizationDecoder
+        , expect = Http.expectJson tagger authDecoder
         }
 
 
