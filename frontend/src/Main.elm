@@ -22,42 +22,59 @@ type AuthState
     | AuthenticateFailed
 
 
-type alias Model =
-    { authState : AuthState
-    , isLoading : Bool
-    , searchText : String
+type alias AccountListForm =
+    { searchText : String
     , programs : Maybe (List Program_)
     , statuses : Maybe (List Status)
     , selectedProgram : Maybe Program_
     , selectedStatus : Maybe Status
+    }
+
+
+type AccountListState
+    = AccountListWith AccountListForm
+    | AccountListLoading
+
+
+type alias Model =
+    { authState : AuthState
+    , accountListState : AccountListState
     , links : Maybe (List Link)
     }
 
 
 type Msg
-    = GotSearchText String
+    = GotSearchText AccountListForm String
     | UpdateAuthState LnurlAuth
     | LoadLnurlAuth (Result Http.Error LnurlAuth)
     | LoadAuth (Result Http.Error Auth)
-    | LoadPrograms (Result Http.Error (List Program_))
-    | LoadStatuses (Result Http.Error (List Status))
+    | LoadPrograms AccountListForm (Result Http.Error (List Program_))
+    | LoadStatuses AccountListForm (Result Http.Error (List Status))
     | LoadLinks (Result Http.Error (List Link))
     | LoadUserStatuses (Result Http.Error (List UserStatus))
-    | ChooseProgram Program_
-    | ChooseStatus Status
+    | ChooseProgram AccountListForm Program_
+    | ChooseStatus AccountListForm Status
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        GotSearchText text ->
+        GotSearchText form text ->
+            let
+                newForm =
+                    { form
+                        | searchText = text
+                        , programs = Nothing
+                        , statuses = Nothing
+                        , selectedProgram = Nothing
+                        , selectedStatus = Nothing
+                    }
+            in
             ( { model
-                | searchText = text
-                , selectedProgram = Nothing
-                , statuses = Nothing
-                , selectedStatus = Nothing
+                | accountListState =
+                    AccountListWith newForm
               }
-            , fetchPrograms text LoadPrograms
+            , fetchPrograms text (LoadPrograms newForm)
             )
 
         UpdateAuthState lnurlAuth ->
@@ -79,7 +96,7 @@ update msg model =
             ( { model
                 | authState =
                     Authenticated auth
-                , isLoading = True
+                , accountListState = AccountListLoading
               }
             , fetchUserStatuses auth LoadUserStatuses
             )
@@ -87,24 +104,38 @@ update msg model =
         LoadAuth (Err _) ->
             ( model, Cmd.none )
 
-        LoadPrograms (Ok programs) ->
+        LoadPrograms form (Ok programs) ->
+            let
+                newForm =
+                    { form
+                        | programs = Just programs
+                    }
+            in
             ( { model
-                | programs = Just programs
+                | accountListState =
+                    AccountListWith newForm
               }
             , Cmd.none
             )
 
-        LoadPrograms (Err _) ->
+        LoadPrograms _ (Err _) ->
             ( model, Cmd.none )
 
-        LoadStatuses (Ok statuses) ->
+        LoadStatuses form (Ok statuses) ->
+            let
+                newForm =
+                    { form
+                        | statuses = Just statuses
+                    }
+            in
             ( { model
-                | statuses = Just statuses
+                | accountListState =
+                    AccountListWith newForm
               }
             , Cmd.none
             )
 
-        LoadStatuses (Err _) ->
+        LoadStatuses _ (Err _) ->
             ( model, Cmd.none )
 
         LoadLinks (Ok links) ->
@@ -126,13 +157,20 @@ update msg model =
                     userStatus
                         |> Maybe.map
                             (\{ program, status } ->
+                                let
+                                    form =
+                                        { searchText = ""
+                                        , programs = Just [ program ]
+                                        , statuses = Nothing
+                                        , selectedProgram = Just program
+                                        , selectedStatus = Just status
+                                        }
+                                in
                                 ( { model
-                                    | selectedProgram = Just program
-                                    , selectedStatus = Just status
-                                    , programs = Just [ program ]
-                                    , isLoading = False
+                                    | accountListState =
+                                        AccountListWith form
                                   }
-                                , fetchStatuses program LoadStatuses
+                                , fetchStatuses program (LoadStatuses form)
                                 )
                             )
                         |> Maybe.withDefault ( model, Cmd.none )
@@ -144,22 +182,33 @@ update msg model =
         LoadUserStatuses (Err _) ->
             ( model, Cmd.none )
 
-        ChooseProgram program ->
+        ChooseProgram form program ->
+            let
+                newForm =
+                    { form
+                        | selectedProgram = Just program
+                        , searchText = program.name
+                    }
+            in
             ( { model
-                | selectedProgram = Just program
-                , searchText = program.name
+                | accountListState =
+                    AccountListWith newForm
               }
-            , fetchStatuses program LoadStatuses
+            , fetchStatuses program (LoadStatuses newForm)
             )
 
-        ChooseStatus status ->
+        ChooseStatus form status ->
             let
+                newForm =
+                    { form | selectedStatus = Just status }
+
                 fetchCmd =
-                    Maybe.map3 fetchLinks model.selectedProgram (Just status) (Just LoadLinks)
+                    Maybe.map3 fetchLinks newForm.selectedProgram (Just status) (Just LoadLinks)
                         |> Maybe.withDefault Cmd.none
             in
             ( { model
-                | selectedStatus = Just status
+                | accountListState =
+                    AccountListWith newForm
               }
             , fetchCmd
             )
@@ -168,12 +217,14 @@ update msg model =
 initialModel : Model
 initialModel =
     { authState = AuthenticateLoading
-    , searchText = ""
-    , isLoading = False
-    , programs = Nothing
-    , statuses = Nothing
-    , selectedProgram = Nothing
-    , selectedStatus = Nothing
+    , accountListState =
+        AccountListWith
+            { searchText = ""
+            , programs = Nothing
+            , statuses = Nothing
+            , selectedProgram = Nothing
+            , selectedStatus = Nothing
+            }
     , links = Nothing
     }
 
@@ -203,8 +254,8 @@ main =
         }
 
 
-viewProgram : Bool -> Program_ -> Element Msg
-viewProgram isSelected program =
+viewProgram : AccountListForm -> Bool -> Program_ -> Element Msg
+viewProgram form isSelected program =
     let
         asString =
             if isSelected then
@@ -217,18 +268,19 @@ viewProgram isSelected program =
         [ Font.color MatrixTheme.foregroundColor2
         , focused []
         ]
-        { onPress = Just <| ChooseProgram program
+        { onPress = Just <| ChooseProgram form program
         , label = text asString
         }
 
 
-viewProgramList : Maybe Program_ -> List Program_ -> Element Msg
-viewProgramList selectedProgram programs =
+viewProgramList : AccountListForm -> Element Msg
+viewProgramList form =
     let
         children =
-            programs
+            form.programs
+                |> Maybe.withDefault []
                 |> List.take 3
-                |> List.map (\p -> viewProgram (Just p == selectedProgram) p)
+                |> List.map (\p -> viewProgram form (Just p == form.selectedProgram) p)
     in
     Element.column
         [ paddingXY 0 8
@@ -253,21 +305,24 @@ viewStatus status =
     Input.optionWith status viewOption
 
 
-viewStatusList : Maybe Status -> List Status -> Element Msg
-viewStatusList selected statuses =
+viewStatusList : AccountListForm -> Element Msg
+viewStatusList form =
     Input.radio
         [ Font.color MatrixTheme.foregroundColor2
         , paddingXY 0 8
         ]
-        { onChange = ChooseStatus
-        , selected = selected
+        { onChange = ChooseStatus form
+        , selected = form.selectedStatus
         , label = Input.labelAbove [ Font.bold ] <| text "STATUS: "
-        , options = statuses |> List.map viewStatus
+        , options =
+            form.statuses
+                |> Maybe.withDefault []
+                |> List.map viewStatus
         }
 
 
-viewForm : Model -> Element Msg
-viewForm model =
+viewAccountList : Model -> Element Msg
+viewAccountList model =
     Element.el
         [ width fill
         , Border.color MatrixTheme.foregroundColor
@@ -275,23 +330,24 @@ viewForm model =
         , padding 16
         ]
     <|
-        if model.isLoading then
-            viewFormLoading
+        case model.accountListState of
+            AccountListWith form ->
+                viewAccountListForm form
 
-        else
-            viewFormMain model
+            AccountListLoading ->
+                viewAccountListLoading
 
 
-viewFormLoading : Element msg
-viewFormLoading =
+viewAccountListLoading : Element msg
+viewAccountListLoading =
     row [ spacing 8 ]
         [ el [ htmlAttribute <| RawAttrs.class "spinner" ] none
-        , text "Retrieving your loyality accounts. Wait a minute."
+        , text "Retrieving your accounts. Wait a minute."
         ]
 
 
-viewFormMain : Model -> Element Msg
-viewFormMain model =
+viewAccountListForm : AccountListForm -> Element Msg
+viewAccountListForm form =
     column []
         [ Input.search
             [ Input.focusedOnLoad
@@ -312,24 +368,20 @@ viewFormMain model =
                 Element.el
                     [ htmlAttribute <| RawAttrs.class "caret"
                     , moveDown 6.0
-                    , moveRight (10.0 * toFloat (String.length model.searchText |> max 1))
+                    , moveRight (10.0 * toFloat (String.length form.searchText |> max 1))
                     , width (px 10)
                     , height (px 20)
                     , Background.color MatrixTheme.foregroundColor
                     ]
                     Element.none
             ]
-            { onChange = GotSearchText
-            , text = model.searchText
+            { onChange = GotSearchText form
+            , text = form.searchText
             , placeholder = Nothing
             , label = Input.labelLeft [ Font.bold ] <| text "PROGRAM: "
             }
-        , model.programs
-            |> Maybe.map (viewProgramList model.selectedProgram)
-            |> Maybe.withDefault Element.none
-        , model.statuses
-            |> Maybe.map (viewStatusList model.selectedStatus)
-            |> Maybe.withDefault Element.none
+        , viewProgramList form
+        , viewStatusList form
         ]
 
 
@@ -443,6 +495,6 @@ view model =
             , height fill
             , width fill
             ]
-            [ viewForm model
+            [ viewAccountList model
             , viewResult model
             ]
