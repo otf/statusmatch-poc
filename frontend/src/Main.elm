@@ -37,7 +37,7 @@ type alias Model =
 type Msg
     = GotSearchText String
     | UpdateAuthState LnurlAuth
-    | LoadLnurlAuth (Result Http.Error ( Lnurl, Challenge ))
+    | LoadLnurlAuth (Result Http.Error LnurlAuth)
     | LoadAuth (Result Http.Error Auth)
     | LoadPrograms (Result Http.Error (List Program_))
     | LoadStatuses (Result Http.Error (List Status))
@@ -65,9 +65,9 @@ update msg model =
             , fetchLnurlAuthState lnurlAuth LoadAuth
             )
 
-        LoadLnurlAuth (Ok ( lnurl, k1 )) ->
+        LoadLnurlAuth (Ok lnurlAuth) ->
             ( { model
-                | authState = Authenticating { lnurl = lnurl, k1 = k1 }
+                | authState = Authenticating lnurlAuth
               }
             , Cmd.none
             )

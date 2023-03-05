@@ -56,9 +56,9 @@ type alias Link =
     }
 
 
-lnurlDecoder : D.Decoder ( Lnurl, Challenge )
-lnurlDecoder =
-    D.map2 (\lnurl challenge -> ( lnurl, challenge ))
+lnurlAuthDecoder : D.Decoder LnurlAuth
+lnurlAuthDecoder =
+    D.map2 LnurlAuth
         (D.field "lnurl" D.string)
         (D.field "k1" D.string)
 
@@ -118,11 +118,11 @@ userStatusListDecoder =
     D.list userStatusDecoder
 
 
-fetchLnurlAuth : (Result Http.Error ( Lnurl, Challenge ) -> msg) -> Cmd msg
+fetchLnurlAuth : (Result Http.Error LnurlAuth -> msg) -> Cmd msg
 fetchLnurlAuth tagger =
     Http.get
         { url = "api/login"
-        , expect = Http.expectJson tagger lnurlDecoder
+        , expect = Http.expectJson tagger lnurlAuthDecoder
         }
 
 
