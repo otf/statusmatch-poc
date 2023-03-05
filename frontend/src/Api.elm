@@ -72,7 +72,9 @@ authorizationDecoder =
 
 programDecoder : D.Decoder Program_
 programDecoder =
-    D.map2 Program_ (D.field "id" D.int) (D.field "name" D.string)
+    D.map2 Program_
+        (D.field "id" D.int)
+        (D.field "name" D.string)
 
 
 programListDecoder : D.Decoder (List Program_)
@@ -82,7 +84,9 @@ programListDecoder =
 
 statusDecoder : D.Decoder Status
 statusDecoder =
-    D.map2 Status (D.field "level" D.int) (D.field "name" D.string)
+    D.map2 Status
+        (D.field "level" D.int)
+        (D.field "name" D.string)
 
 
 statusListDecoder : D.Decoder (List Status)
@@ -92,7 +96,9 @@ statusListDecoder =
 
 linkDecoder : D.Decoder Link
 linkDecoder =
-    D.map2 Link (D.field "program" D.string) (D.field "status" D.string)
+    D.map2 Link
+        (D.field "program" D.string)
+        (D.field "status" D.string)
 
 
 linkListDecoder : D.Decoder (List Link)
