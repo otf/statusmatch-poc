@@ -1,6 +1,6 @@
 use async_stream::stream;
 use futures::stream::StreamExt;
-use std::{path::PathBuf, vec};
+use std::{path, vec};
 use tower_http::services::ServeDir;
 
 use axum::{
@@ -317,7 +317,7 @@ async fn diagnose_links(
     (StatusCode::OK, Json(links))
 }
 
-pub fn router(service_url: &str, pool: PgPool, static_folder: &PathBuf) -> Router {
+pub fn router(service_url: &str, pool: PgPool, static_folder: impl AsRef<path::Path>) -> Router {
     Router::new()
         .route("/api/login", get(login))
         .route("/api/login/:k1", get(get_login_status))
