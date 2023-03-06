@@ -1,32 +1,5 @@
 {
   "db": "PostgreSQL",
-  "1bb2ed5659c6d5f6c3c5c7fa8db39c418b1ba9766fbee3139410aced05a3d37c": {
-    "describe": {
-      "columns": [
-        {
-          "name": "program!: Program",
-          "ordinal": 0,
-          "type_info": "Record"
-        },
-        {
-          "name": "status!: Status",
-          "ordinal": 1,
-          "type_info": "Record"
-        }
-      ],
-      "nullable": [
-        null,
-        null
-      ],
-      "parameters": {
-        "Left": [
-          "Int4",
-          "Text"
-        ]
-      }
-    },
-    "query": "\n                SELECT\n                    (\n                        programs.id,\n                        programs.name\n                    ) AS \"program!: Program\",\n                    (\n                        program_statuses.program_id,\n                        program_statuses.level,\n                        program_statuses.name\n                    ) AS \"status!: Status\"\n                FROM program_statuses\n                INNER JOIN programs ON program_statuses.program_id = programs.id\n                WHERE\n                    programs.id = $1 AND\n                    program_statuses.name = $2\n                "
-  },
   "2b1b75cd5ccb96bfd171428a0cffb5d534656ecbad8597dcad4483e5f487ee8a": {
     "describe": {
       "columns": [
@@ -86,6 +59,33 @@
     },
     "query": "\n            SELECT\n                (SELECT\n                    name\n                    FROM programs\n                    WHERE id = to_program_id\n                ) AS \"program!\",\n                (SELECT\n                    name\n                    FROM program_statuses\n                    WHERE program_id = to_program_id\n                    AND level = MAX(to_status_level)\n                ) AS \"status!\"\n            FROM reports \n            WHERE \n                result = 'match'\n                AND from_program_id = $1\n                AND from_status_level <= $2\n            GROUP BY to_program_id\n        "
   },
+  "61bf3227f72a7af2bf4bd5eda9bf04ad3d56b7e3a2d0e77d3d2caf815a59aae5": {
+    "describe": {
+      "columns": [
+        {
+          "name": "program!: Program",
+          "ordinal": 0,
+          "type_info": "Record"
+        },
+        {
+          "name": "status!: Status",
+          "ordinal": 1,
+          "type_info": "Record"
+        }
+      ],
+      "nullable": [
+        null,
+        null
+      ],
+      "parameters": {
+        "Left": [
+          "Int4",
+          "Text"
+        ]
+      }
+    },
+    "query": "\n                SELECT\n                    (\n                        programs.id,\n                        programs.name\n                    ) AS \"program!: Program\",\n                    (\n                        program_statuses.program_id,\n                        program_statuses.level,\n                        program_statuses.name\n                    ) AS \"status!: Status\"\n                FROM program_statuses\n                INNER JOIN programs ON program_statuses.program_id = programs.id\n                WHERE\n                    programs.id = $1 AND\n                    program_statuses.name = $2\n                ORDER BY\n                    program_statuses.level\n                "
+  },
   "6a545d1821a571ae7f57cc0f6f2fffd4a5fe1e898d5ed39a7d0e043ef6910b02": {
     "describe": {
       "columns": [],
@@ -131,6 +131,38 @@
     },
     "query": "UPDATE challenges SET user_pubkey = $1 WHERE challenge = $2"
   },
+  "9c80993b69c2cfaa1166f5bbf4158c3d3049f3507fc5f0623fe22d6d495ff2a6": {
+    "describe": {
+      "columns": [
+        {
+          "name": "program_id",
+          "ordinal": 0,
+          "type_info": "Int4"
+        },
+        {
+          "name": "level",
+          "ordinal": 1,
+          "type_info": "Int4"
+        },
+        {
+          "name": "name",
+          "ordinal": 2,
+          "type_info": "Varchar"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Int4"
+        ]
+      }
+    },
+    "query": "SELECT * FROM program_statuses WHERE program_id = $1 ORDER BY level"
+  },
   "9d5a43616a3bf539d726cdbb8d4c80b72cdcfd788330df0136f6f18a869e80a0": {
     "describe": {
       "columns": [
@@ -162,38 +194,6 @@
       }
     },
     "query": "INSERT INTO challenges (challenge) VALUES($1)"
-  },
-  "be297becccc92af71b39feae24209e82a4f6ef7b828b75b5fac131bc63959e0d": {
-    "describe": {
-      "columns": [
-        {
-          "name": "program_id",
-          "ordinal": 0,
-          "type_info": "Int4"
-        },
-        {
-          "name": "level",
-          "ordinal": 1,
-          "type_info": "Int4"
-        },
-        {
-          "name": "name",
-          "ordinal": 2,
-          "type_info": "Varchar"
-        }
-      ],
-      "nullable": [
-        false,
-        false,
-        false
-      ],
-      "parameters": {
-        "Left": [
-          "Int4"
-        ]
-      }
-    },
-    "query": "SELECT * FROM program_statuses WHERE program_id = $1"
   },
   "c506654ce2ffd500d95e8a5fe71de622c90f02f3eb16a7476c2c5775ca2f9292": {
     "describe": {

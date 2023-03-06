@@ -111,6 +111,8 @@ async fn get_user_statuses(
                 WHERE
                     programs.id = $1 AND
                     program_statuses.name = $2
+                ORDER BY
+                    program_statuses.level
                 "#,
                 credential.program_id,
                 &status,
@@ -269,7 +271,7 @@ async fn get_statuses(State(pool): State<PgPool>, Path(id): Path<i32>) -> impl I
 
     let statuses = sqlx::query_as!(
         Status,
-        "SELECT * FROM program_statuses WHERE program_id = $1",
+        "SELECT * FROM program_statuses WHERE program_id = $1 ORDER BY level",
         id,
     )
     .fetch_all(&mut conn)
