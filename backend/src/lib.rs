@@ -83,7 +83,6 @@ async fn get_user_statuses(
             user_credentials 
         WHERE
             user_pubkey = $1
-            AND program_id = 147
         "#,
         &pubkey,
     )
@@ -94,7 +93,14 @@ async fn get_user_statuses(
     let statuses = stream! {
         for credential in credentials {
             let status =
-                dormys::retrieve_status(&credential.username, &credential.password).unwrap();
+                if credential.program_id == 147 { // Dormys
+                    dormys::retrieve_status(&credential.username, &credential.password).unwrap()
+                } else if credential.program_id == 148 { // COCO'S WEB
+                    cocoweb::retrieve_status(&credential.username, &credential.password).unwrap()
+                } else {
+                    unimplemented!("Unimpemented Program")
+                };
+
             let user_status = sqlx::query_as!(UserStatus, r#"
                 SELECT
                     (

@@ -1,37 +1,5 @@
 {
   "db": "PostgreSQL",
-  "2b1b75cd5ccb96bfd171428a0cffb5d534656ecbad8597dcad4483e5f487ee8a": {
-    "describe": {
-      "columns": [
-        {
-          "name": "program_id",
-          "ordinal": 0,
-          "type_info": "Int4"
-        },
-        {
-          "name": "username",
-          "ordinal": 1,
-          "type_info": "Varchar"
-        },
-        {
-          "name": "password",
-          "ordinal": 2,
-          "type_info": "Varchar"
-        }
-      ],
-      "nullable": [
-        false,
-        false,
-        false
-      ],
-      "parameters": {
-        "Left": [
-          "Bytea"
-        ]
-      }
-    },
-    "query": "\n        SELECT\n            program_id,\n            username,\n            password\n        FROM\n            user_credentials \n        WHERE\n            user_pubkey = $1\n            AND program_id = 147\n        "
-  },
   "5d99288290352ce56eb07cfa645e0eb69dc8ad9c5fb60f38b0add266c14fa7a1": {
     "describe": {
       "columns": [
@@ -220,5 +188,37 @@
       }
     },
     "query": "SELECT * FROM programs WHERE LOWER(name) LIKE LOWER($1)"
+  },
+  "c6bd0a9728cdb0195d1c260e7fca6c9b023da2b1dd3a5d1bc12e334941801f2b": {
+    "describe": {
+      "columns": [
+        {
+          "name": "program_id",
+          "ordinal": 0,
+          "type_info": "Int4"
+        },
+        {
+          "name": "username",
+          "ordinal": 1,
+          "type_info": "Varchar"
+        },
+        {
+          "name": "password",
+          "ordinal": 2,
+          "type_info": "Varchar"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Bytea"
+        ]
+      }
+    },
+    "query": "\n        SELECT\n            program_id,\n            username,\n            password\n        FROM\n            user_credentials \n        WHERE\n            user_pubkey = $1\n        "
   }
 }
