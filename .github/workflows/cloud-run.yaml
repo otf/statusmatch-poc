@@ -57,4 +57,7 @@ jobs:
             --region="asia-northeast1" \
             --service-account=github-actions@$PROJECT_ID.iam.gserviceaccount.com \
             --allow-unauthenticated \
-            --add-cloudsql-instances=$PROJECT_ID:asia-northeast1:cachet
+            --add-cloudsql-instances=$PROJECT_ID:asia-northeast1:statusmatch_poc \
+            --set-env-vars "SERVICE_URL=${{ secrets.SERVICE_URL }}" \
+            --set-env-vars "DATABASE_URL=${{ secrets.DATABASE_URL }}" \
+            --set-env-vars "JWT_SECRET=${{ secrets.JWT_SECRET }}"
