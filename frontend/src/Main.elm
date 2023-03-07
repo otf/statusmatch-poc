@@ -40,6 +40,7 @@ type AccountListState
 type alias Model =
     { authState : AuthState
     , accountListState : AccountListState
+    , userStatuses : Maybe (List UserStatus)
     , links : Maybe (List Link)
     }
 
@@ -155,33 +156,37 @@ update msg model =
 
         LoadUserStatuses (Ok userStatuses) ->
             let
-                userStatus =
-                    userStatuses |> List.head
+                fistUserStatus =
+                    userStatuses
+                        |> List.head
 
-                ( newModel, cmd ) =
-                    userStatus
-                        |> Maybe.map
-                            (\{ program, status } ->
-                                let
-                                    form =
-                                        { searchText = ""
-                                        , programs = Just [ program ]
-                                        , statuses = Nothing
-                                        , selectedProgram = Just program
-                                        , selectedStatus = Just status
-                                        }
-                                in
-                                ( { model
-                                    | accountListState =
-                                        AccountListWith form
-                                  }
-                                , fetchStatuses program (LoadStatuses form)
-                                )
-                            )
-                        |> Maybe.withDefault ( model, Cmd.none )
+                form =
+                    { searchText = ""
+                    , programs = userStatuses |> List.map .program |> Just
+                    , statuses = Nothing
+                    , selectedProgram = fistUserStatus |> Maybe.map .program
+                    , selectedStatus = fistUserStatus |> Maybe.map .status
+                    }
+
+                fetchStatusesCmd =
+                    fistUserStatus
+                        |> Maybe.map .program
+                        |> Maybe.map (\p -> fetchStatuses p (LoadStatuses form))
+                        |> Maybe.withDefault Cmd.none
+
+                fetchLinksCmd =
+                    Maybe.map3 fetchLinks form.selectedProgram form.selectedStatus (Just LoadLinks)
+                        |> Maybe.withDefault Cmd.none
             in
-            ( newModel
-            , cmd
+            ( { model
+                | accountListState =
+                    AccountListWith form
+                , userStatuses = Just userStatuses
+              }
+            , Cmd.batch
+                [ fetchStatusesCmd
+                , fetchLinksCmd
+                ]
             )
 
         LoadUserStatuses (Err _) ->
@@ -189,17 +194,31 @@ update msg model =
 
         ChooseProgram form program ->
             let
+                selectedStatus =
+                    model.userStatuses
+                        |> Maybe.andThen
+                            (List.filter (\userStatus -> userStatus.program == program) >> List.head)
+                        |> Maybe.map .status
+
                 newForm =
                     { form
                         | selectedProgram = Just program
+                        , selectedStatus = selectedStatus
                         , searchText = program.name
                     }
+
+                fetchLinksCmd =
+                    Maybe.map3 fetchLinks newForm.selectedProgram newForm.selectedStatus (Just LoadLinks)
+                        |> Maybe.withDefault Cmd.none
             in
             ( { model
                 | accountListState =
                     AccountListWith newForm
               }
-            , fetchStatuses program (LoadStatuses newForm)
+            , Cmd.batch
+                [ fetchStatuses program (LoadStatuses newForm)
+                , fetchLinksCmd
+                ]
             )
 
         ChooseStatus form status ->
@@ -230,6 +249,7 @@ initialModel =
             , selectedProgram = Nothing
             , selectedStatus = Nothing
             }
+    , userStatuses = Nothing
     , links = Nothing
     }
 
