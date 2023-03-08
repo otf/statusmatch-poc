@@ -27,7 +27,19 @@
     },
     "query": "\n            SELECT\n                (SELECT\n                    name\n                    FROM programs\n                    WHERE id = to_program_id\n                ) AS \"program!\",\n                (SELECT\n                    name\n                    FROM program_statuses\n                    WHERE program_id = to_program_id\n                    AND level = MAX(to_status_level)\n                ) AS \"status!\"\n            FROM reports \n            WHERE \n                result = 'match'\n                AND from_program_id = $1\n                AND from_status_level <= $2\n            GROUP BY to_program_id\n        "
   },
-  "61bf3227f72a7af2bf4bd5eda9bf04ad3d56b7e3a2d0e77d3d2caf815a59aae5": {
+  "6a545d1821a571ae7f57cc0f6f2fffd4a5fe1e898d5ed39a7d0e043ef6910b02": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Bytea"
+        ]
+      }
+    },
+    "query": "INSERT INTO users (pubkey) VALUES ($1) ON CONFLICT DO NOTHING"
+  },
+  "7117e33f83c9ad2d24b217e73cf67c11a447c9e124f1e389126b0bddb7a111f5": {
     "describe": {
       "columns": [
         {
@@ -47,24 +59,11 @@
       ],
       "parameters": {
         "Left": [
-          "Int4",
-          "Text"
-        ]
-      }
-    },
-    "query": "\n                SELECT\n                    (\n                        programs.id,\n                        programs.name\n                    ) AS \"program!: Program\",\n                    (\n                        program_statuses.program_id,\n                        program_statuses.level,\n                        program_statuses.name\n                    ) AS \"status!: Status\"\n                FROM program_statuses\n                INNER JOIN programs ON program_statuses.program_id = programs.id\n                WHERE\n                    programs.id = $1 AND\n                    program_statuses.name = $2\n                ORDER BY\n                    program_statuses.level\n                "
-  },
-  "6a545d1821a571ae7f57cc0f6f2fffd4a5fe1e898d5ed39a7d0e043ef6910b02": {
-    "describe": {
-      "columns": [],
-      "nullable": [],
-      "parameters": {
-        "Left": [
           "Bytea"
         ]
       }
     },
-    "query": "INSERT INTO users (pubkey) VALUES ($1) ON CONFLICT DO NOTHING"
+    "query": "\n        SELECT\n            (\n                programs.id,\n                programs.name\n            ) AS \"program!: Program\",\n            (\n                program_statuses.program_id,\n                program_statuses.level,\n                program_statuses.name\n            ) AS \"status!: Status\"\n        FROM user_statuses\n        INNER JOIN program_statuses\n            ON user_statuses.program_id = program_statuses.program_id\n            AND user_statuses.level = program_statuses.level\n        INNER JOIN programs\n            ON program_statuses.program_id = programs.id\n        WHERE\n            user_statuses.user_pubkey = $1\n        ORDER BY\n            program_statuses.level\n        "
   },
   "7e0d1ef8b1c14238473a8139f34b2c0bf2c0176ea4771cf5118ed4c9124193a2": {
     "describe": {
@@ -188,37 +187,5 @@
       }
     },
     "query": "SELECT * FROM programs WHERE LOWER(name) LIKE LOWER($1)"
-  },
-  "c6bd0a9728cdb0195d1c260e7fca6c9b023da2b1dd3a5d1bc12e334941801f2b": {
-    "describe": {
-      "columns": [
-        {
-          "name": "program_id",
-          "ordinal": 0,
-          "type_info": "Int4"
-        },
-        {
-          "name": "username",
-          "ordinal": 1,
-          "type_info": "Varchar"
-        },
-        {
-          "name": "password",
-          "ordinal": 2,
-          "type_info": "Varchar"
-        }
-      ],
-      "nullable": [
-        false,
-        false,
-        false
-      ],
-      "parameters": {
-        "Left": [
-          "Bytea"
-        ]
-      }
-    },
-    "query": "\n        SELECT\n            program_id,\n            username,\n            password\n        FROM\n            user_credentials \n        WHERE\n            user_pubkey = $1\n        "
   }
 }

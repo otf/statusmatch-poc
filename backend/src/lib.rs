@@ -1,5 +1,3 @@
-use async_stream::stream;
-use futures::stream::StreamExt;
 use std::{path, vec};
 use tower_http::services::ServeDir;
 
@@ -51,13 +49,6 @@ struct SearchQuery {
     text: String,
 }
 
-#[derive(Deserialize)]
-struct Credential {
-    program_id: i32,
-    username: String,
-    password: String,
-}
-
 #[derive(Serialize)]
 struct UserStatus {
     program: Program,
@@ -72,17 +63,29 @@ async fn get_user_statuses(
 
     let pubkey = hex::decode(&sub).unwrap();
 
-    let credentials = sqlx::query_as!(
-        Credential,
+    let user_statuses = sqlx::query_as!(
+        UserStatus,
         r#"
         SELECT
-            program_id,
-            username,
-            password
-        FROM
-            user_credentials 
+            (
+                programs.id,
+                programs.name
+            ) AS "program!: Program",
+            (
+                program_statuses.program_id,
+                program_statuses.level,
+                program_statuses.name
+            ) AS "status!: Status"
+        FROM user_statuses
+        INNER JOIN program_statuses
+            ON user_statuses.program_id = program_statuses.program_id
+            AND user_statuses.level = program_statuses.level
+        INNER JOIN programs
+            ON program_statuses.program_id = programs.id
         WHERE
-            user_pubkey = $1
+            user_statuses.user_pubkey = $1
+        ORDER BY
+            program_statuses.level
         "#,
         &pubkey,
     )
@@ -90,48 +93,7 @@ async fn get_user_statuses(
     .await
     .unwrap();
 
-    let statuses = stream! {
-        for credential in credentials {
-            let status =
-                if credential.program_id == 147 { // Dormys
-                    dormys::retrieve_status(&credential.username, &credential.password).unwrap()
-                } else if credential.program_id == 148 { // COCO'S WEB
-                    cocoweb::retrieve_status(&credential.username, &credential.password).unwrap()
-                } else {
-                    unimplemented!("Unimpemented Program")
-                };
-
-            let user_status = sqlx::query_as!(UserStatus, r#"
-                SELECT
-                    (
-                        programs.id,
-                        programs.name
-                    ) AS "program!: Program",
-                    (
-                        program_statuses.program_id,
-                        program_statuses.level,
-                        program_statuses.name
-                    ) AS "status!: Status"
-                FROM program_statuses
-                INNER JOIN programs ON program_statuses.program_id = programs.id
-                WHERE
-                    programs.id = $1 AND
-                    program_statuses.name = $2
-                ORDER BY
-                    program_statuses.level
-                "#,
-                credential.program_id,
-                &status,
-            )
-            .fetch_optional(&mut conn)
-            .await
-            .unwrap();
-
-            yield user_status
-        }
-    };
-
-    let resp = json!(statuses.collect::<Vec<_>>().await);
+    let resp = json!(user_statuses);
 
     (StatusCode::OK, Json(resp))
 }
