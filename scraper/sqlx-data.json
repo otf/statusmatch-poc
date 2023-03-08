@@ -1,0 +1,53 @@
+{
+  "db": "PostgreSQL",
+  "7b43f4f18cc1e9967ce8418d23393066d23d2fbf19cc846706ccbd940d00d9ea": {
+    "describe": {
+      "columns": [
+        {
+          "name": "user_pubkey",
+          "ordinal": 0,
+          "type_info": "Bytea"
+        },
+        {
+          "name": "program_id",
+          "ordinal": 1,
+          "type_info": "Int4"
+        },
+        {
+          "name": "username",
+          "ordinal": 2,
+          "type_info": "Varchar"
+        },
+        {
+          "name": "password",
+          "ordinal": 3,
+          "type_info": "Varchar"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": []
+      }
+    },
+    "query": "SELECT * FROM user_credentials"
+  },
+  "e0703666d461f04fd61462f30c4f9b62cec9c732ad5bd96261ecd4ab05c062f1": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Bytea",
+          "Int4",
+          "Text"
+        ]
+      }
+    },
+    "query": "\n            WITH get_level AS (\n                SELECT level\n                FROM program_statuses\n                WHERE\n                    program_id = $2\n                    AND name = $3\n            )\n            INSERT INTO user_statuses\n            VALUES (\n                $1,\n                $2,\n                (SELECT * FROM get_level)\n            )\n            ON CONFLICT (user_pubkey, program_id)\n            DO UPDATE\n                SET level = (SELECT * FROM get_level)\n            "
+  }
+}

@@ -40,7 +40,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      - name: Build and push
+      - name: Build and push (backend)
         uses: docker/build-push-action@v4
         with:
           context: .
@@ -49,7 +49,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Deploy to Cloud Run
+      - name: Deploy to Cloud Run (backend)
         run: |-
           gcloud run deploy $SERVICE_NAME \
             --project=$PROJECT_ID \
@@ -61,3 +61,22 @@ jobs:
             --set-env-vars "SERVICE_URL=${{ secrets.SERVICE_URL }}" \
             --set-env-vars "DATABASE_URL=${{ secrets.DATABASE_URL }}" \
             --set-env-vars "JWT_SECRET=${{ secrets.JWT_SECRET }}"
+
+      - name: Build and push (scraper)
+        uses: docker/build-push-action@v4
+        with:
+          context: ./scraper
+          push: true
+          tags: "asia.gcr.io/${{ env.PROJECT_ID }}/scraper:${{ github.sha }}"
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deploy to Cloud Run (scraper)
+        run: |-
+          gcloud --quiet beta run jobs update scraper \
+            --project=$PROJECT_ID \
+            --image=asia.gcr.io/$PROJECT_ID/scraper:${{ github.sha }} \
+            --region="asia-northeast1" \
+            --service-account=github-actions@$PROJECT_ID.iam.gserviceaccount.com \
+            --add-cloudsql-instances=$PROJECT_ID:asia-northeast1:statusmatch \
+            --set-env-vars "DATABASE_URL=${{ secrets.DATABASE_URL }}"
